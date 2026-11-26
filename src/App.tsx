@@ -19,6 +19,7 @@ import MyPage from './pages/mypage/MyPage'
 import NotFoundPage from './pages/NotFoundPage'
 import NoticePage from './pages/notice/NoticePage'
 import TeamRoomPage from './pages/team/TeamRoomPage'
+import WelcomePage from './pages/welcome/WelcomePage'
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
         <AdminAlertsProvider>
           <Routes>
             {/* 로그인 전 */}
+            <Route path="welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
             <Route path="login" element={<GuestOnly><LoginPage /></GuestOnly>} />
             <Route path="signup" element={<GuestOnly><SignupPage /></GuestOnly>} />
 

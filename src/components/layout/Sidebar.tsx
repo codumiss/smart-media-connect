@@ -25,7 +25,7 @@ export function Sidebar() {
             end={path === '/'}
             className={({ isActive }) =>
               [
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
                 adminOnly ? 'mt-4 border-t border-slate-100 pt-4' : '',
                 isActive
                   ? 'bg-brand-50 text-brand-700'
@@ -33,7 +33,7 @@ export function Sidebar() {
               ].join(' ')
             }
           >
-            <Icon className="size-5" />
+            <Icon className="size-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
             <span className="flex-1">{label}</span>
             {comingSoon && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">준비 중</span>}
             {adminOnly && pendingCount > 0 && (

@@ -45,7 +45,7 @@ export default function LoginPage() {
           />
         </Field>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {error && <p className="animate-rise rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
         <button type="submit" className={primaryButtonClass} disabled={submitting || !supabase}>
           {submitting ? '로그인 중…' : '로그인'}
