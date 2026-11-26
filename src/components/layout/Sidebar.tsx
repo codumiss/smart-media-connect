@@ -3,6 +3,7 @@ import { NAV_ITEMS } from '../../config/navigation'
 import { useAdminAlerts } from '../../lib/adminAlerts'
 import { useAuth } from '../../lib/auth'
 import { Logo } from './Logo'
+import { NotificationBell } from './NotificationBell'
 import { UserBadge } from './UserBadge'
 
 /** PC(≥ md) 왼쪽 사이드바 */
@@ -13,8 +14,9 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-slate-200 md:bg-white">
-      <div className="px-5 py-5">
+      <div className="flex items-center justify-between py-5 pr-3 pl-5">
         <Logo />
+        <NotificationBell placement="sidebar" />
       </div>
 
       <nav className="flex-1 space-y-1 px-3">

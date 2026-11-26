@@ -11,13 +11,17 @@ import AdminReportsPage from './pages/admin/AdminReportsPage'
 import LoginPage from './pages/auth/LoginPage'
 import SignupPage from './pages/auth/SignupPage'
 import ChatPage from './pages/chat/ChatPage'
+import ChatRoomPage from './pages/chat/ChatRoomPage'
 import CommunityPage from './pages/community/CommunityPage'
+import PostDetailPage from './pages/community/PostDetailPage'
+import PostWritePage from './pages/community/PostWritePage'
 import ContestPage from './pages/contest/ContestPage'
 import HomePage from './pages/home/HomePage'
 import MorePage from './pages/MorePage'
 import MyPage from './pages/mypage/MyPage'
 import NotFoundPage from './pages/NotFoundPage'
 import NoticePage from './pages/notice/NoticePage'
+import TeamRoomDetailPage from './pages/team/TeamRoomDetailPage'
 import TeamRoomPage from './pages/team/TeamRoomPage'
 import WelcomePage from './pages/welcome/WelcomePage'
 
@@ -44,9 +48,13 @@ export default function App() {
             <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
               <Route index element={<HomePage />} />
               <Route path="chat" element={<ChatPage />} />
+              <Route path="chat/:id" element={<ChatRoomPage />} />
               <Route path="notice" element={<NoticePage />} />
               <Route path="community" element={<CommunityPage />} />
+              <Route path="community/new" element={<PostWritePage />} />
+              <Route path="community/:id" element={<PostDetailPage />} />
               <Route path="team" element={<TeamRoomPage />} />
+              <Route path="team/:id" element={<TeamRoomDetailPage />} />
               <Route path="contest" element={<ContestPage />} />
               <Route path="mypage" element={<MyPage />} />
               <Route path="more" element={<MorePage />} />
