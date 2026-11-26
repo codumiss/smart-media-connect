@@ -180,7 +180,7 @@ export default function SignupPage() {
           />
         </Field>
 
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {error && <p className="animate-rise rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
         <button type="submit" className={primaryButtonClass} disabled={submitting || !supabase}>
           {submitting ? '가입 중…' : '가입하기'}

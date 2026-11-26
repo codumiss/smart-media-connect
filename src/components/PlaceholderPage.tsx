@@ -19,8 +19,12 @@ export function PlaceholderPage({ item }: { item: NavItem }) {
       <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-5 md:p-6">
         <h2 className="font-semibold">기획서상 기능 후보</h2>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {item.plannedFeatures.map((feature) => (
-            <li key={feature} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {item.plannedFeatures.map((feature, i) => (
+            <li
+              key={feature}
+              className="animate-rise rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"
+              style={{ animationDelay: `${120 + i * 50}ms` }}
+            >
               {feature}
             </li>
           ))}

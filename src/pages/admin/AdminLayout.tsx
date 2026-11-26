@@ -1,6 +1,7 @@
 import { ArrowLeft, Flag, LayoutDashboard, Megaphone, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { UserBadge } from '../../components/layout/UserBadge'
+import { PageTransition } from '../../components/motion/PageTransition'
 import { useAdminAlerts } from '../../lib/adminAlerts'
 
 type AdminNavItem = { path: string; label: string; icon: LucideIcon; badge?: 'reports' }
@@ -99,7 +100,9 @@ export default function AdminLayout() {
 
       <main className="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 md:px-10 md:py-8">
         <div className="mx-auto max-w-5xl">
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </div>
       </main>
     </div>

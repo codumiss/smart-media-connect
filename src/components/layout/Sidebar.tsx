@@ -3,6 +3,7 @@ import { NAV_ITEMS } from '../../config/navigation'
 import { useAdminAlerts } from '../../lib/adminAlerts'
 import { useAuth } from '../../lib/auth'
 import { Logo } from './Logo'
+import { NotificationBell } from './NotificationBell'
 import { UserBadge } from './UserBadge'
 
 /** PC(≥ md) 왼쪽 사이드바 */
@@ -13,8 +14,9 @@ export function Sidebar() {
 
   return (
     <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-slate-200 md:bg-white">
-      <div className="px-5 py-5">
+      <div className="flex items-center justify-between py-5 pr-3 pl-5">
         <Logo />
+        <NotificationBell placement="sidebar" />
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
@@ -25,7 +27,7 @@ export function Sidebar() {
             end={path === '/'}
             className={({ isActive }) =>
               [
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
                 adminOnly ? 'mt-4 border-t border-slate-100 pt-4' : '',
                 isActive
                   ? 'bg-brand-50 text-brand-700'
@@ -33,7 +35,7 @@ export function Sidebar() {
               ].join(' ')
             }
           >
-            <Icon className="size-5" />
+            <Icon className="size-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
             <span className="flex-1">{label}</span>
             {comingSoon && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">준비 중</span>}
             {adminOnly && pendingCount > 0 && (

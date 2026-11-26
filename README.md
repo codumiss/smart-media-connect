@@ -44,6 +44,9 @@ src/
 ├─ components/
 │  ├─ auth/guards.tsx       # RequireAuth, RequireAdmin, GuestOnly
 │  ├─ layout/               # AppLayout, Sidebar(PC), BottomNav(모바일), Logo, UserBadge
+│  ├─ ui/                   # Button, Card, Modal, Tabs, Field, EmptyState 등 공통 UI
+│  ├─ chat/ChatRoom.tsx     # 채팅 화면 (소통방·1:1·팀 채팅 공용, 실시간)
+│  ├─ motion/               # Reveal(스크롤 등장), PageTransition(화면 전환)
 │  ├─ ReportButton.tsx      # 신고 버튼 (게시글·댓글·채팅에 붙여서 사용)
 │  └─ PlaceholderPage.tsx   # 기능 구현 전 임시 화면
 ├─ lib/
@@ -54,7 +57,13 @@ src/
 └─ pages/
    ├─ auth/                 # 로그인, 회원가입
    ├─ admin/                # 관리자 전용 (별도 레이아웃): 대시보드, 신고, 회원, 공지·일정
-   ├─ home/  chat/  notice/  community/  team/  mypage/
+   ├─ welcome/              # 로그인 전 소개 화면 (휴대폰 시연, 스크롤 전환)
+   ├─ home/                 # 대시보드: 다가오는 일정, 공지, 모집 중인 팀, 내 팀룸, 최근 글
+   ├─ chat/                 # 소통방 목록·만들기, 채팅방(실시간), 1:1 대화
+   ├─ notice/               # 공지사항, 학사 일정 캘린더
+   ├─ community/            # 정보방 목록·글쓰기·상세, 댓글, 팀원 모집·신청·승인
+   ├─ team/                 # 팀룸 목록·만들기·방 키 참여, 상세(채팅·회의 일정·자료·팀원)
+   ├─ mypage/
    ├─ contest/              # 확장 계획 — '준비 중' 화면
    ├─ MorePage.tsx          # 모바일 '더보기'
    └─ NotFoundPage.tsx
@@ -93,6 +102,7 @@ const { profile, isAdmin, displayName } = useAuth()   // displayName: 관리자�
 | `..._reports.sql` | 신고, 관리자 알림, 3건 누적 자동 숨김, 관리자 처리 함수 |
 | `..._grants_realtime.sql` | 컬럼 단위 권한, 함수 실행 권한, Realtime(메시지·알림·신고) |
 | `..._seed.sql` | 기본 소통방 3개, 공모전 일정 |
+| `..._team_rooms_owner_select.sql` | 팀룸 생성 직후 방장이 결과를 받을 수 있게 조회 정책 수정 |
 
 권한 규칙 (RLS)
 
