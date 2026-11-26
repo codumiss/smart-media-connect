@@ -13,3 +13,12 @@ if (!isSupabaseConfigured) {
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null
+
+/**
+ * 로그인한 화면(RequireAuth 안쪽)에서 쓰는 클라이언트.
+ * 로그인 화면을 통과했다면 Supabase 설정이 되어 있으므로 null 체크 없이 사용할 수 있음.
+ */
+export function db() {
+  if (!supabase) throw new Error('Supabase 설정이 없습니다. .env.local 을 확인하세요.')
+  return supabase
+}
