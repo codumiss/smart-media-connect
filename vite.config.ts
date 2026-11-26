@@ -11,6 +11,20 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      workbox: {
+        // 폰트 CSS·파일을 한 번 받으면 기기에 저장해서 다음부터 바로 표시
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.origin === 'https://cdn.jsdelivr.net',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'webfonts',
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: 'SMART MEDIA CONNECT',
         short_name: 'SM CONNECT',
