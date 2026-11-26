@@ -1,0 +1,1136 @@
+From 9eb14da4f58eb966659023a690288d9a1b0258f1 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 26 Nov 2026 19:34:36 +0900
+Subject: [PATCH] =?UTF-8?q?feat:=20=EC=86=8C=EA=B0=9C=20=ED=99=94=EB=A9=B4?=
+ =?UTF-8?q?=EA=B3=BC=20=ED=99=94=EB=A9=B4=20=EC=A0=84=ED=99=98=20=EC=95=A0?=
+ =?UTF-8?q?=EB=8B=88=EB=A9=94=EC=9D=B4=EC=85=98?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- /welcome 소개 화면 (로그인 전 첫 화면)
+  - 첫 화면: 휴대폰 안에서 팀원 모집 → 신청 → 승인 → 팀룸 → 팀 채팅 과정 자동 재생
+  - 스크롤하면 단계 설명에 맞춰 휴대폰 화면이 바뀌는 구간
+  - 스크롤 진행 표시줄, 스크롤 시 나타나는 섹션
+- 앱 안에서 메뉴 이동 시 화면 전환, 모바일 하단 탭 선택 표시
+- 로그인·회원가입 화면 등장 애니메이션
+- Reveal(스크롤 등장), PageTransition 공통 컴포넌트
+- 움직임 줄이기 설정 사용자는 애니메이션 없이 표시
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NXX4AJxKfjQPkUEUdWByWs
+---
+ src/App.tsx                              |   2 +
+ src/components/PlaceholderPage.tsx       |   8 +-
+ src/components/auth/guards.tsx           |   2 +-
+ src/components/layout/AppLayout.tsx      |   5 +-
+ src/components/layout/BottomNav.tsx      |  19 +-
+ src/components/layout/Sidebar.tsx        |   4 +-
+ src/components/motion/PageTransition.tsx |  12 +
+ src/components/motion/Reveal.tsx         |  47 ++++
+ src/index.css                            |  72 +++++
+ src/pages/admin/AdminLayout.tsx          |   5 +-
+ src/pages/auth/AuthShell.tsx             |  21 +-
+ src/pages/auth/LoginPage.tsx             |   2 +-
+ src/pages/auth/SignupPage.tsx            |   2 +-
+ src/pages/welcome/FlowPhone.tsx          | 339 ++++++++++++++++++++++
+ src/pages/welcome/WelcomePage.tsx        | 340 +++++++++++++++++++++++
+ 15 files changed, 858 insertions(+), 22 deletions(-)
+ create mode 100644 src/components/motion/PageTransition.tsx
+ create mode 100644 src/components/motion/Reveal.tsx
+ create mode 100644 src/pages/welcome/FlowPhone.tsx
+ create mode 100644 src/pages/welcome/WelcomePage.tsx
+
+diff --git a/src/App.tsx b/src/App.tsx
+index 09cc74e..c0205da 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -19,6 +19,7 @@ import MyPage from './pages/mypage/MyPage'
+ import NotFoundPage from './pages/NotFoundPage'
+ import NoticePage from './pages/notice/NoticePage'
+ import TeamRoomPage from './pages/team/TeamRoomPage'
++import WelcomePage from './pages/welcome/WelcomePage'
+ 
+ export default function App() {
+   return (
+@@ -27,6 +28,7 @@ export default function App() {
+         <AdminAlertsProvider>
+           <Routes>
+             {/* 로그인 전 */}
++            <Route path="welcome" element={<GuestOnly><WelcomePage /></GuestOnly>} />
+             <Route path="login" element={<GuestOnly><LoginPage /></GuestOnly>} />
+             <Route path="signup" element={<GuestOnly><SignupPage /></GuestOnly>} />
+ 
+diff --git a/src/components/PlaceholderPage.tsx b/src/components/PlaceholderPage.tsx
+index afeaeca..9e3d14c 100644
+--- a/src/components/PlaceholderPage.tsx
++++ b/src/components/PlaceholderPage.tsx
+@@ -19,8 +19,12 @@ export function PlaceholderPage({ item }: { item: NavItem }) {
+       <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-5 md:p-6">
+         <h2 className="font-semibold">기획서상 기능 후보</h2>
+         <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+-          {item.plannedFeatures.map((feature) => (
+-            <li key={feature} className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
++          {item.plannedFeatures.map((feature, i) => (
++            <li
++              key={feature}
++              className="animate-rise rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"
++              style={{ animationDelay: `${120 + i * 50}ms` }}
++            >
+               {feature}
+             </li>
+           ))}
+diff --git a/src/components/auth/guards.tsx b/src/components/auth/guards.tsx
+index 2820d91..eeb1f49 100644
+--- a/src/components/auth/guards.tsx
++++ b/src/components/auth/guards.tsx
+@@ -16,7 +16,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
+   const location = useLocation()
+ 
+   if (!ready) return <FullScreenLoading />
+-  if (!session) return <Navigate to="/login" replace state={{ from: location.pathname }} />
++  if (!session) return <Navigate to="/welcome" replace state={{ from: location.pathname }} />
+   return children
+ }
+ 
+diff --git a/src/components/layout/AppLayout.tsx b/src/components/layout/AppLayout.tsx
+index 9904fbd..06b75e3 100644
+--- a/src/components/layout/AppLayout.tsx
++++ b/src/components/layout/AppLayout.tsx
+@@ -1,4 +1,5 @@
+ import { Outlet } from 'react-router-dom'
++import { PageTransition } from '../motion/PageTransition'
+ import { BottomNav } from './BottomNav'
+ import { Logo } from './Logo'
+ import { Sidebar } from './Sidebar'
+@@ -18,7 +19,9 @@ export function AppLayout() {
+ 
+         <main className="flex-1 overflow-y-auto px-4 pt-5 pb-24 md:px-10 md:py-8">
+           <div className="mx-auto max-w-5xl">
+-            <Outlet />
++            <PageTransition>
++              <Outlet />
++            </PageTransition>
+           </div>
+         </main>
+       </div>
+diff --git a/src/components/layout/BottomNav.tsx b/src/components/layout/BottomNav.tsx
+index 67dfef5..5eed7e6 100644
+--- a/src/components/layout/BottomNav.tsx
++++ b/src/components/layout/BottomNav.tsx
+@@ -3,7 +3,7 @@ import { MORE_TAB, NAV_ITEMS } from '../../config/navigation'
+ 
+ const TABS = [...NAV_ITEMS.filter((item) => item.mobileTab), MORE_TAB]
+ 
+-/** 모바일(< md) 하단 탭 메뉴 */
++/** 모바일(< md) 하단 탭 메뉴 — 선택한 탭의 아이콘 배경이 커지며 표시됨 */
+ export function BottomNav() {
+   return (
+     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+@@ -15,13 +15,24 @@ export function BottomNav() {
+               end={path === '/'}
+               className={({ isActive }) =>
+                 [
+-                  'flex flex-col items-center gap-1 py-2 text-[11px] font-medium',
++                  'flex flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium transition-colors active:scale-95',
+                   isActive ? 'text-brand-600' : 'text-slate-500',
+                 ].join(' ')
+               }
+             >
+-              <Icon className="size-5" />
+-              {label}
++              {({ isActive }) => (
++                <>
++                  <span
++                    className={[
++                      'grid h-7 w-12 place-items-center rounded-full transition-all duration-300',
++                      isActive ? 'scale-100 bg-brand-50' : 'scale-75 bg-transparent',
++                    ].join(' ')}
++                  >
++                    <Icon className={['size-5 transition-transform duration-300', isActive ? 'scale-110' : 'scale-125'].join(' ')} />
++                  </span>
++                  {label}
++                </>
++              )}
+             </NavLink>
+           </li>
+         ))}
+diff --git a/src/components/layout/Sidebar.tsx b/src/components/layout/Sidebar.tsx
+index 07a4915..f1824b6 100644
+--- a/src/components/layout/Sidebar.tsx
++++ b/src/components/layout/Sidebar.tsx
+@@ -25,7 +25,7 @@ export function Sidebar() {
+             end={path === '/'}
+             className={({ isActive }) =>
+               [
+-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
++                'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 active:scale-[0.98]',
+                 adminOnly ? 'mt-4 border-t border-slate-100 pt-4' : '',
+                 isActive
+                   ? 'bg-brand-50 text-brand-700'
+@@ -33,7 +33,7 @@ export function Sidebar() {
+               ].join(' ')
+             }
+           >
+-            <Icon className="size-5" />
++            <Icon className="size-5 transition-transform duration-200 group-hover:-translate-y-0.5" />
+             <span className="flex-1">{label}</span>
+             {comingSoon && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500">준비 중</span>}
+             {adminOnly && pendingCount > 0 && (
+diff --git a/src/components/motion/PageTransition.tsx b/src/components/motion/PageTransition.tsx
+new file mode 100644
+index 0000000..af7bafe
+--- /dev/null
++++ b/src/components/motion/PageTransition.tsx
+@@ -0,0 +1,12 @@
++import type { ReactNode } from 'react'
++import { useLocation } from 'react-router-dom'
++
++/** 메뉴를 이동할 때마다 새 화면이 살짝 떠오르며 바뀜 */
++export function PageTransition({ children }: { children: ReactNode }) {
++  const location = useLocation()
++  return (
++    <div key={location.pathname} className="animate-page">
++      {children}
++    </div>
++  )
++}
+diff --git a/src/components/motion/Reveal.tsx b/src/components/motion/Reveal.tsx
+new file mode 100644
+index 0000000..14b9807
+--- /dev/null
++++ b/src/components/motion/Reveal.tsx
+@@ -0,0 +1,47 @@
++import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
++
++/** 요소가 화면에 보이기 시작하면 true (한 번만) */
++export function useInViewOnce<T extends Element>(options?: IntersectionObserverInit) {
++  const ref = useRef<T | null>(null)
++  const [inView, setInView] = useState(false)
++
++  useEffect(() => {
++    const el = ref.current
++    if (!el) return
++    if (!('IntersectionObserver' in window)) {
++      setInView(true)
++      return
++    }
++    const observer = new IntersectionObserver(
++      ([entry]) => {
++        if (entry?.isIntersecting) {
++          setInView(true)
++          observer.disconnect()
++        }
++      },
++      { threshold: 0.15, rootMargin: '0px 0px -8% 0px', ...options },
++    )
++    observer.observe(el)
++    return () => observer.disconnect()
++  }, [])
++
++  return { ref, inView }
++}
++
++/**
++ * 스크롤해서 화면에 들어오면 아래에서 떠오르며 나타남
++ *   <Reveal>...</Reveal>
++ *   <Reveal delay={120}>...</Reveal>   // 여러 개를 순서대로 나타나게 할 때
++ */
++export function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
++  const { ref, inView } = useInViewOnce<HTMLDivElement>()
++  return (
++    <div
++      ref={ref}
++      className={`reveal ${inView ? 'is-visible' : ''} ${className}`}
++      style={{ '--reveal-delay': `${delay}ms` } as CSSProperties}
++    >
++      {children}
++    </div>
++  )
++}
+diff --git a/src/index.css b/src/index.css
+index 6c390a6..5a227ec 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -3,12 +3,48 @@
+ @theme {
+   --color-brand-50: #eef2ff;
+   --color-brand-100: #e0e7ff;
++  --color-brand-200: #c7d2fe;
+   --color-brand-500: #6366f1;
+   --color-brand-600: #4f46e5;
+   --color-brand-700: #4338ca;
++  --color-ink: #1e1b4b;
++  --color-signal: #16a34a;
+   /* 웹폰트를 못 받았을 때: 아이폰은 Apple SD Gothic Neo, 갤럭시는 기본 한글 글꼴(Noto Sans KR 계열), 윈도우는 맑은 고딕 */
+   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
+     "Noto Sans KR", "Malgun Gothic", Roboto, sans-serif;
++
++  /* ---------- 움직임 ---------- */
++  --ease-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
++  --animate-rise: rise 0.8s var(--ease-soft) both;
++  --animate-pop: pop 0.45s var(--ease-soft) both;
++  --animate-page: page-in 0.35s var(--ease-soft) both;
++  --animate-drop: drop 0.5s var(--ease-soft) both;
++  --animate-caret: caret 1s steps(1) infinite;
++  --animate-ping-soft: ping-soft 1.6s var(--ease-soft) infinite;
++
++  @keyframes rise {
++    from { opacity: 0; transform: translateY(18px); }
++    to { opacity: 1; transform: none; }
++  }
++  @keyframes pop {
++    from { opacity: 0; transform: scale(0.9); }
++    to { opacity: 1; transform: none; }
++  }
++  @keyframes page-in {
++    from { opacity: 0; transform: translateY(8px); }
++    to { opacity: 1; transform: none; }
++  }
++  @keyframes drop {
++    from { opacity: 0; transform: translateY(-110%); }
++    to { opacity: 1; transform: none; }
++  }
++  @keyframes caret {
++    50% { opacity: 0; }
++  }
++  @keyframes ping-soft {
++    0% { box-shadow: 0 0 0 0 rgb(79 70 229 / 0.45); }
++    100% { box-shadow: 0 0 0 14px rgb(79 70 229 / 0); }
++  }
+ }
+ 
+ html,
+@@ -20,3 +56,39 @@ body,
+ body {
+   @apply bg-slate-50 text-slate-900 antialiased;
+ }
++
++/* 스크롤하면 나타나는 요소 (components/motion/Reveal.tsx) */
++.reveal {
++  opacity: 0;
++  transform: translateY(28px);
++  transition:
++    opacity 0.8s var(--ease-soft),
++    transform 0.8s var(--ease-soft);
++  transition-delay: var(--reveal-delay, 0ms);
++}
++.reveal.is-visible {
++  opacity: 1;
++  transform: none;
++}
++
++/* 키보드로 이동할 때 포커스가 보이도록 */
++:focus-visible {
++  outline: 2px solid var(--color-brand-500);
++  outline-offset: 2px;
++}
++
++/* 움직임 줄이기 설정을 켠 사용자는 애니메이션 없이 */
++@media (prefers-reduced-motion: reduce) {
++  *,
++  *::before,
++  *::after {
++    animation-duration: 0.01ms !important;
++    animation-iteration-count: 1 !important;
++    transition-duration: 0.01ms !important;
++    scroll-behavior: auto !important;
++  }
++  .reveal {
++    opacity: 1;
++    transform: none;
++  }
++}
+diff --git a/src/pages/admin/AdminLayout.tsx b/src/pages/admin/AdminLayout.tsx
+index 6615aa8..5589fb3 100644
+--- a/src/pages/admin/AdminLayout.tsx
++++ b/src/pages/admin/AdminLayout.tsx
+@@ -1,6 +1,7 @@
+ import { ArrowLeft, Flag, LayoutDashboard, Megaphone, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+ import { Link, NavLink, Outlet } from 'react-router-dom'
+ import { UserBadge } from '../../components/layout/UserBadge'
++import { PageTransition } from '../../components/motion/PageTransition'
+ import { useAdminAlerts } from '../../lib/adminAlerts'
+ 
+ type AdminNavItem = { path: string; label: string; icon: LucideIcon; badge?: 'reports' }
+@@ -99,7 +100,9 @@ export default function AdminLayout() {
+ 
+       <main className="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 md:px-10 md:py-8">
+         <div className="mx-auto max-w-5xl">
+-          <Outlet />
++          <PageTransition>
++            <Outlet />
++          </PageTransition>
+         </div>
+       </main>
+     </div>
+diff --git a/src/pages/auth/AuthShell.tsx b/src/pages/auth/AuthShell.tsx
+index 4cb0dc4..52eb8b4 100644
+--- a/src/pages/auth/AuthShell.tsx
++++ b/src/pages/auth/AuthShell.tsx
+@@ -1,4 +1,5 @@
+ import type { ReactNode } from 'react'
++import { Link } from 'react-router-dom'
+ import { isSupabaseConfigured } from '../../lib/supabase'
+ 
+ /** 로그인·회원가입 화면 공통 틀 */
+@@ -7,12 +8,12 @@ export function AuthShell({ title, description, children }: { title: string; des
+     <div className="flex min-h-full items-center justify-center px-4 py-10">
+       <div className="w-full max-w-sm">
+         <div className="mb-8 text-center">
+-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-brand-600 text-sm font-bold text-white">
+-            SM
+-          </span>
+-          <p className="mt-3 text-sm font-bold tracking-tight">SMART MEDIA CONNECT</p>
+-          <h1 className="mt-6 text-2xl font-bold">{title}</h1>
+-          <p className="mt-1 text-sm text-slate-500">{description}</p>
++          <Link to="/welcome" className="inline-flex animate-pop flex-col items-center" title="소개 화면으로">
++            <span className="grid size-12 place-items-center rounded-2xl bg-brand-600 text-sm font-bold text-white">SM</span>
++            <span className="mt-3 text-sm font-bold tracking-tight text-ink">SMART MEDIA CONNECT</span>
++          </Link>
++          <h1 className="mt-6 animate-rise text-2xl font-bold [animation-delay:80ms]">{title}</h1>
++          <p className="mt-1 animate-rise text-sm text-slate-500 [animation-delay:140ms]">{description}</p>
+         </div>
+ 
+         {!isSupabaseConfigured && (
+@@ -21,7 +22,9 @@ export function AuthShell({ title, description, children }: { title: string; des
+           </p>
+         )}
+ 
+-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">{children}</div>
++        <div className="animate-rise rounded-2xl border border-slate-200 bg-white p-5 shadow-sm [animation-delay:200ms] md:p-6">
++          {children}
++        </div>
+       </div>
+     </div>
+   )
+@@ -38,7 +41,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
+ }
+ 
+ export const inputClass =
+-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100 md:text-sm'
++  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 md:text-sm'
+ 
+ export const primaryButtonClass =
+-  'w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50'
++  'w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50'
+diff --git a/src/pages/auth/LoginPage.tsx b/src/pages/auth/LoginPage.tsx
+index 3e92ff1..2d7834c 100644
+--- a/src/pages/auth/LoginPage.tsx
++++ b/src/pages/auth/LoginPage.tsx
+@@ -45,7 +45,7 @@ export default function LoginPage() {
+           />
+         </Field>
+ 
+-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
++        {error && <p className="animate-rise rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+ 
+         <button type="submit" className={primaryButtonClass} disabled={submitting || !supabase}>
+           {submitting ? '로그인 중…' : '로그인'}
+diff --git a/src/pages/auth/SignupPage.tsx b/src/pages/auth/SignupPage.tsx
+index b314327..26da69d 100644
+--- a/src/pages/auth/SignupPage.tsx
++++ b/src/pages/auth/SignupPage.tsx
+@@ -180,7 +180,7 @@ export default function SignupPage() {
+           />
+         </Field>
+ 
+-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
++        {error && <p className="animate-rise rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+ 
+         <button type="submit" className={primaryButtonClass} disabled={submitting || !supabase}>
+           {submitting ? '가입 중…' : '가입하기'}
+diff --git a/src/pages/welcome/FlowPhone.tsx b/src/pages/welcome/FlowPhone.tsx
+new file mode 100644
+index 0000000..2e4e56b
+--- /dev/null
++++ b/src/pages/welcome/FlowPhone.tsx
+@@ -0,0 +1,339 @@
++import { Bell, CalendarDays, Check, KeyRound, Send, Users } from 'lucide-react'
++import { useEffect, useState, type ReactNode } from 'react'
++
++/**
++ * 소개 화면의 휴대폰 시연 화면
++ * 팀원 모집 → 신청 → 승인 → 팀룸 참여 → 팀 채팅 순서를 실제 서비스 화면처럼 보여줌
++ * step 이 바뀌면 해당 화면이 넘어오면서 안쪽 애니메이션이 처음부터 다시 재생됨
++ */
++
++export const FLOW_STEPS = [
++  {
++    title: '팀원 모집 글 작성',
++    body: '정보방에 공모전 이름, 모집 분야, 인원, 마감일을 적어 올립니다.',
++  },
++  {
++    title: '참여 신청',
++    body: '다른 학년 학생이 모집 글을 보고 한 줄 소개와 함께 신청합니다.',
++  },
++  {
++    title: '작성자 승인',
++    body: '작성자가 신청자를 확인하고 승인합니다. 결과는 신청자에게 알림으로 갑니다.',
++  },
++  {
++    title: '팀룸 자동 참여',
++    body: '승인된 학생은 모집 글에 연결된 팀룸에 바로 들어갑니다. 방 키를 받아 직접 들어올 수도 있습니다.',
++  },
++  {
++    title: '팀 채팅과 회의 일정',
++    body: '팀원끼리 채팅하고, 회의 일정과 자료 링크를 팀룸 한곳에 모읍니다.',
++  },
++] as const
++
++const reducedMotion = () =>
++  typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
++
++/** active 가 된 뒤 ms 만큼 지나면 true */
++function useAfter(active: boolean, ms: number) {
++  const [done, setDone] = useState(false)
++  useEffect(() => {
++    if (!active) {
++      setDone(false)
++      return
++    }
++    if (reducedMotion()) {
++      setDone(true)
++      return
++    }
++    const id = window.setTimeout(() => setDone(true), ms)
++    return () => window.clearTimeout(id)
++  }, [active, ms])
++  return done
++}
++
++/** active 동안 글자가 한 글자씩 입력됨 */
++function useTypewriter(text: string, active: boolean, startDelay = 300, speed = 55) {
++  const [count, setCount] = useState(0)
++  useEffect(() => {
++    if (!active) {
++      setCount(0)
++      return
++    }
++    if (reducedMotion()) {
++      setCount(text.length)
++      return
++    }
++    let i = 0
++    let interval = 0
++    const start = window.setTimeout(() => {
++      interval = window.setInterval(() => {
++        i += 1
++        setCount(i)
++        if (i >= text.length) window.clearInterval(interval)
++      }, speed)
++    }, startDelay)
++    return () => {
++      window.clearTimeout(start)
++      window.clearInterval(interval)
++    }
++  }, [active, text, startDelay, speed])
++  return text.slice(0, count)
++}
++
++function ScreenHeader({ children }: { children: ReactNode }) {
++  return <p className="border-b border-slate-100 px-4 pt-3 pb-2.5 text-[11px] font-semibold text-slate-500">{children}</p>
++}
++
++function RecruitScreen({ active }: { active: boolean }) {
++  const pressed = useAfter(active, 1600)
++  return (
++    <>
++      <ScreenHeader>정보방 / 팀원 모집</ScreenHeader>
++      <div className="p-3">
++        <div className="rounded-2xl border border-slate-200 p-3.5">
++          <div className="flex items-center gap-1.5 text-[10px] font-semibold">
++            <span className="rounded-full bg-brand-50 px-2 py-0.5 text-brand-700">모집 중</span>
++            <span className="text-slate-400">마감 D-3</span>
++          </div>
++          <p className="mt-2 text-[13px] leading-snug font-bold">웹 개발 공모전 같이 나갈 팀원 구해요</p>
++          <dl className="mt-3 space-y-1.5 text-[11px]">
++            {[
++              ['분야', '프론트엔드, UI 디자인'],
++              ['인원', '2명'],
++              ['방식', '주 2회 오프라인'],
++            ].map(([k, v]) => (
++              <div key={k} className="flex gap-2">
++                <dt className="w-7 text-slate-400">{k}</dt>
++                <dd className="text-slate-700">{v}</dd>
++              </div>
++            ))}
++          </dl>
++          <button
++            type="button"
++            tabIndex={-1}
++            className={[
++              'mt-4 w-full rounded-xl py-2 text-[12px] font-semibold text-white transition-all duration-300',
++              pressed ? 'scale-95 bg-brand-700' : 'animate-ping-soft bg-brand-600',
++            ].join(' ')}
++          >
++            {pressed ? '신청서 작성 중…' : '참여 신청'}
++          </button>
++        </div>
++        <div className="mt-2.5 space-y-2 opacity-60">
++          <div className="h-14 rounded-2xl bg-slate-100" />
++          <div className="h-14 rounded-2xl bg-slate-100" />
++        </div>
++      </div>
++    </>
++  )
++}
++
++function ApplyScreen({ active }: { active: boolean }) {
++  const message = 'React로 과제 해 봤어요. 프론트 맡고 싶습니다!'
++  const typed = useTypewriter(message, active)
++  const sent = useAfter(active, 300 + message.length * 55 + 500)
++  return (
++    <>
++      <ScreenHeader>참여 신청</ScreenHeader>
++      <div className="p-3">
++        <p className="text-[12px] font-bold">웹 개발 공모전 같이 나갈 팀원 구해요</p>
++        <div className="mt-3 min-h-24 rounded-xl border border-brand-200 bg-white p-3 text-[12px] leading-relaxed">
++          {typed}
++          {!sent && <span className="ml-px inline-block h-3.5 w-px animate-caret bg-brand-600 align-middle" />}
++        </div>
++        <div
++          className={[
++            'mt-3 flex items-center justify-center gap-1.5 rounded-xl py-2 text-[12px] font-semibold transition-colors duration-300',
++            sent ? 'bg-signal text-white' : 'bg-slate-100 text-slate-400',
++          ].join(' ')}
++        >
++          {sent ? <Check className="size-3.5" /> : <Send className="size-3.5" />}
++          {sent ? '신청 완료' : '보내기'}
++        </div>
++        {sent && <p className="mt-2 animate-rise text-center text-[11px] text-slate-500">작성자에게 알림이 갔어요</p>}
++      </div>
++    </>
++  )
++}
++
++function ApproveScreen({ active }: { active: boolean }) {
++  const approved = useAfter(active, 1400)
++  return (
++    <>
++      <ScreenHeader>내 모집 글 / 신청자 2명</ScreenHeader>
++      <ul className="space-y-2 p-3">
++        <li className="rounded-2xl border border-slate-200 p-3">
++          <div className="flex items-center gap-2">
++            <span className="grid size-7 place-items-center rounded-full bg-brand-100 text-[11px] font-bold text-brand-700">도</span>
++            <div className="min-w-0 flex-1">
++              <p className="text-[12px] font-semibold">도윤 · 2학년</p>
++              <p className="truncate text-[10px] text-slate-500">React로 과제 해 봤어요. 프론트 맡고…</p>
++            </div>
++          </div>
++          <div
++            className={[
++              'mt-2.5 flex items-center justify-center gap-1 rounded-lg py-1.5 text-[11px] font-semibold transition-all duration-500',
++              approved ? 'bg-signal text-white' : 'bg-brand-600 text-white',
++            ].join(' ')}
++          >
++            {approved && <Check className="size-3.5" />}
++            {approved ? '승인됨' : '승인'}
++          </div>
++        </li>
++        <li className="rounded-2xl border border-slate-200 p-3 opacity-70">
++          <div className="flex items-center gap-2">
++            <span className="grid size-7 place-items-center rounded-full bg-slate-100 text-[11px] font-bold text-slate-500">서</span>
++            <div>
++              <p className="text-[12px] font-semibold">서연 · 1학년</p>
++              <p className="text-[10px] text-slate-500">디자인 해 보고 싶어요</p>
++            </div>
++          </div>
++        </li>
++      </ul>
++      {approved && (
++        <p className="mx-3 animate-rise rounded-xl bg-emerald-50 px-3 py-2 text-[11px] text-emerald-700">
++          도윤 님이 팀룸에 추가됐어요
++        </p>
++      )}
++    </>
++  )
++}
++
++function TeamRoomScreen({ active }: { active: boolean }) {
++  const code = 'SM-8KHMG7'
++  const showBanner = useAfter(active, 1500)
++  return (
++    <>
++      <ScreenHeader>팀룸</ScreenHeader>
++      {showBanner && (
++        <div className="absolute inset-x-2 top-8 z-10 flex animate-drop items-center gap-2 rounded-xl bg-ink px-3 py-2 text-white shadow-lg">
++          <Bell className="size-3.5 shrink-0" />
++          <p className="text-[11px]">새 팀원이 참여했습니다</p>
++        </div>
++      )}
++      <div className="p-3">
++        <p className="text-[13px] font-bold">웹 개발 공모전 팀</p>
++        <div className="mt-3 rounded-2xl bg-brand-50 p-3">
++          <p className="flex items-center gap-1 text-[10px] font-semibold text-brand-700">
++            <KeyRound className="size-3" />방 키
++          </p>
++          <p className="mt-1 flex font-bold tracking-wider text-ink">
++            {active &&
++              code.split('').map((ch, i) => (
++                <span key={i} className="animate-pop text-[20px]" style={{ animationDelay: `${150 + i * 70}ms` }}>
++                  {ch}
++                </span>
++              ))}
++          </p>
++        </div>
++        <p className="mt-4 flex items-center gap-1 text-[11px] font-semibold text-slate-500">
++          <Users className="size-3.5" />
++          팀원 3명
++        </p>
++        <div className="mt-2 flex -space-x-2">
++          {active &&
++            ['아', '도', '민'].map((ch, i) => (
++              <span
++                key={ch}
++                className="grid size-9 animate-pop place-items-center rounded-full border-2 border-white bg-brand-100 text-[12px] font-bold text-brand-700"
++                style={{ animationDelay: `${800 + i * 160}ms` }}
++              >
++                {ch}
++              </span>
++            ))}
++        </div>
++      </div>
++    </>
++  )
++}
++
++function ChatScreen({ active }: { active: boolean }) {
++  const messages = [
++    { me: false, name: '도윤', text: '다들 반가워요!' },
++    { me: true, name: '', text: '목요일 7시에 첫 회의 어때요?' },
++    { me: false, name: '민준', text: '좋아요. 자료 링크도 올려둘게요' },
++  ]
++  return (
++    <>
++      <ScreenHeader>웹 개발 공모전 팀 / 채팅</ScreenHeader>
++      <div className="p-3">
++        <div className="space-y-2">
++        {active &&
++          messages.map((m, i) => (
++            <div
++              key={i}
++              className={`flex animate-rise flex-col ${m.me ? 'items-end' : 'items-start'}`}
++              style={{ animationDelay: `${200 + i * 650}ms` }}
++            >
++              {m.name && <span className="mb-0.5 text-[10px] text-slate-400">{m.name}</span>}
++              <span
++                className={[
++                  'max-w-[85%] rounded-2xl px-3 py-1.5 text-[12px]',
++                  m.me ? 'rounded-br-sm bg-brand-600 text-white' : 'rounded-bl-sm bg-slate-100',
++                ].join(' ')}
++              >
++                {m.text}
++              </span>
++            </div>
++          ))}
++        </div>
++        {active && (
++          <div
++            className="mt-4 flex animate-rise items-center gap-2 rounded-xl border border-slate-200 p-2.5"
++            style={{ animationDelay: '2200ms' }}
++          >
++            <CalendarDays className="size-4 text-brand-600" />
++            <div>
++              <p className="text-[11px] font-semibold">첫 회의</p>
++              <p className="text-[10px] text-slate-500">목요일 19:00</p>
++            </div>
++          </div>
++        )}
++      </div>
++    </>
++  )
++}
++
++const SCREENS = [RecruitScreen, ApplyScreen, ApproveScreen, TeamRoomScreen, ChatScreen]
++
++export function FlowPhone({ step, className = '' }: { step: number; className?: string }) {
++  return (
++    <div
++      className={`relative h-[500px] w-[260px] shrink-0 rounded-[2.4rem] border-[7px] border-ink bg-white shadow-2xl shadow-brand-600/20 ${className}`}
++      aria-hidden="true"
++    >
++      <span className="absolute top-2 left-1/2 z-20 h-4 w-20 -translate-x-1/2 rounded-full bg-ink" />
++      <div className="absolute inset-0 overflow-hidden rounded-[1.9rem]">
++        {SCREENS.map((Screen, i) => {
++          const active = i === step
++          return (
++            <div
++              key={i}
++              className={[
++                'absolute inset-0 pt-7 transition-all duration-500 ease-[var(--ease-soft)]',
++                active
++                  ? 'translate-x-0 opacity-100'
++                  : i < step
++                    ? 'pointer-events-none -translate-x-8 opacity-0'
++                    : 'pointer-events-none translate-x-8 opacity-0',
++              ].join(' ')}
++            >
++              <Screen active={active} />
++            </div>
++          )
++        })}
++      </div>
++    </div>
++  )
++}
++
++/** 일정 시간마다 다음 단계로 넘어감 (마지막 다음은 처음으로) */
++export function useAutoStep(count: number, intervalMs: number, enabled = true) {
++  const [step, setStep] = useState(0)
++  useEffect(() => {
++    if (!enabled) return
++    const id = window.setInterval(() => setStep((s) => (s + 1) % count), intervalMs)
++    return () => window.clearInterval(id)
++  }, [count, intervalMs, enabled])
++  return [step, setStep] as const
++}
+diff --git a/src/pages/welcome/WelcomePage.tsx b/src/pages/welcome/WelcomePage.tsx
+new file mode 100644
+index 0000000..3794116
+--- /dev/null
++++ b/src/pages/welcome/WelcomePage.tsx
+@@ -0,0 +1,340 @@
++import { Flag, ShieldCheck } from 'lucide-react'
++import { useEffect, useRef, useState } from 'react'
++import { Link, useLocation } from 'react-router-dom'
++import { Reveal } from '../../components/motion/Reveal'
++import { NAV_ITEMS } from '../../config/navigation'
++import { FLOW_STEPS, FlowPhone, useAutoStep } from './FlowPhone'
++
++/**
++ * 로그인 전 소개 화면 (/welcome)
++ * - 첫 화면: 휴대폰 안에서 팀원 모집 → 팀 채팅 과정이 자동으로 재생
++ * - 스크롤: 단계 설명을 내릴 때마다 옆(모바일은 위) 휴대폰 화면이 해당 단계로 바뀜
++ */
++
++/** 스크롤 위치(0~1)와 스크롤 여부 */
++function useScrollProgress() {
++  const [state, setState] = useState({ progress: 0, scrolled: false })
++  useEffect(() => {
++    let frame = 0
++    const update = () => {
++      frame = 0
++      const max = document.documentElement.scrollHeight - window.innerHeight
++      setState({ progress: max > 0 ? window.scrollY / max : 0, scrolled: window.scrollY > 8 })
++    }
++    const onScroll = () => {
++      if (!frame) frame = window.requestAnimationFrame(update)
++    }
++    update()
++    window.addEventListener('scroll', onScroll, { passive: true })
++    window.addEventListener('resize', onScroll)
++    return () => {
++      window.removeEventListener('scroll', onScroll)
++      window.removeEventListener('resize', onScroll)
++      if (frame) window.cancelAnimationFrame(frame)
++    }
++  }, [])
++  return state
++}
++
++const PROBLEMS = [
++  { title: '소통 부족', body: '학년이 다르면 서로 알 기회가 적고, 물어볼 곳이 마땅치 않습니다.' },
++  { title: '정보 분산', body: '학과 공지, 행사, 공모전 소식이 여러 단톡방과 게시판에 흩어져 있습니다.' },
++  { title: '협업의 어려움', body: '공모전이나 프로젝트를 같이 할 팀원을 찾기 어렵고, 팀을 꾸려도 협업 도구를 따로 찾아야 합니다.' },
++]
++
++const MENU_ITEMS = NAV_ITEMS.filter((item) => !['/', '/mypage', '/admin'].includes(item.path))
++
++function HeroSection({ authState }: { authState: unknown }) {
++  const [step, setStep] = useAutoStep(FLOW_STEPS.length, 3600)
++
++  return (
++    <section className="relative overflow-hidden">
++      <div className="mx-auto grid max-w-6xl items-center gap-12 px-5 pt-28 pb-20 md:grid-cols-[1fr_auto] md:gap-16 md:pt-36 md:pb-28">
++        <div>
++          <h1 className="text-[clamp(2.3rem,6vw,4.25rem)] leading-[1.12] font-extrabold tracking-[-0.03em] text-ink">
++            <span className="block animate-rise">스마트미디어학과</span>
++            <span className="block animate-rise [animation-delay:120ms]">전용 소통·협업</span>
++            <span className="block animate-rise [animation-delay:240ms]">플랫폼</span>
++          </h1>
++          <p className="mt-6 max-w-md animate-rise text-[17px] leading-relaxed text-slate-600 [animation-delay:400ms]">
++            학과 공지와 학사 일정 확인, 정보 공유, 팀원 모집, 팀 협업을 한곳에서 합니다.
++          </p>
++          <div className="mt-9 flex animate-rise flex-wrap gap-3 [animation-delay:520ms]">
++            <Link
++              to="/signup"
++              state={authState}
++              className="rounded-xl bg-brand-600 px-6 py-3.5 text-[15px] font-semibold text-white transition hover:bg-brand-700 active:scale-[0.97]"
++            >
++              회원가입
++            </Link>
++            <Link
++              to="/login"
++              state={authState}
++              className="rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-[15px] font-semibold text-ink transition hover:border-slate-400 active:scale-[0.97]"
++            >
++              로그인
++            </Link>
++          </div>
++        </div>
++
++        <div className="flex animate-pop flex-col items-center [animation-delay:300ms]">
++          <div className="relative">
++            <div className="absolute -inset-16 -z-10 rounded-full bg-brand-200/50 blur-3xl" />
++            <FlowPhone step={step} />
++          </div>
++          <div className="mt-6 flex items-center gap-2" role="tablist" aria-label="시연 단계">
++            {FLOW_STEPS.map((s, i) => (
++              <button
++                key={s.title}
++                type="button"
++                role="tab"
++                aria-selected={i === step}
++                aria-label={s.title}
++                onClick={() => setStep(i)}
++                className={[
++                  'h-2 rounded-full transition-all duration-500',
++                  i === step ? 'w-7 bg-brand-600' : 'w-2 bg-slate-300 hover:bg-slate-400',
++                ].join(' ')}
++              />
++            ))}
++          </div>
++          <p key={step} className="mt-3 animate-rise text-sm font-medium text-slate-600">
++            {step + 1}. {FLOW_STEPS[step].title}
++          </p>
++        </div>
++      </div>
++    </section>
++  )
++}
++
++function ProblemSection() {
++  return (
++    <section className="border-y border-slate-200 bg-white">
++      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 md:grid-cols-[1fr_1.4fr] md:py-28">
++        <Reveal>
++          <h2 className="text-3xl leading-snug font-bold tracking-tight text-ink md:text-4xl">
++            학과 생활의 불편에서
++            <br />
++            시작했습니다
++          </h2>
++        </Reveal>
++        <ul className="divide-y divide-slate-200">
++          {PROBLEMS.map((p, i) => (
++            <li key={p.title}>
++              <Reveal delay={i * 120} className="py-6 first:pt-0">
++                <h3 className="text-lg font-bold text-ink">{p.title}</h3>
++                <p className="mt-1.5 leading-relaxed text-slate-600">{p.body}</p>
++              </Reveal>
++            </li>
++          ))}
++        </ul>
++      </div>
++    </section>
++  )
++}
++
++/** 스크롤하면 휴대폰 화면이 단계별로 바뀌는 구간 */
++function FlowStorySection() {
++  const [step, setStep] = useState(0)
++  const blockRefs = useRef<(HTMLDivElement | null)[]>([])
++
++  useEffect(() => {
++    if (!('IntersectionObserver' in window)) return
++    const observer = new IntersectionObserver(
++      (entries) => {
++        for (const entry of entries) {
++          if (entry.isIntersecting) setStep(Number((entry.target as HTMLElement).dataset.step))
++        }
++      },
++      // 화면 55~65% 높이를 지나가는 단계가 현재 단계
++      { rootMargin: '-55% 0px -35% 0px' },
++    )
++    for (const el of blockRefs.current) if (el) observer.observe(el)
++    return () => observer.disconnect()
++  }, [])
++
++  return (
++    <section className="relative">
++      <div className="mx-auto max-w-6xl px-5 pt-20 md:pt-28">
++        <Reveal>
++          <h2 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">모집부터 협업까지</h2>
++          <p className="mt-3 max-w-lg leading-relaxed text-slate-600">
++            공모전 팀원을 모으는 과정이 서비스 안에서 이어집니다. 스크롤하면 단계별 화면을 볼 수 있습니다.
++          </p>
++        </Reveal>
++      </div>
++
++      <div className="mx-auto grid max-w-6xl px-5 md:grid-cols-[1fr_auto] md:gap-20">
++        {/* 휴대폰: 모바일은 위에 고정, PC 는 오른쪽에 고정 */}
++        <div className="sticky top-14 z-10 -mx-5 flex h-[392px] justify-center bg-slate-50/95 pt-4 backdrop-blur md:order-last md:top-0 md:mx-0 md:h-screen md:items-center md:bg-transparent md:pt-0 md:backdrop-blur-none">
++          <FlowPhone step={step} className="origin-top scale-[0.72] md:scale-100" />
++        </div>
++
++        <ol>
++          {FLOW_STEPS.map((s, i) => (
++            <li key={s.title}>
++              <div
++                ref={(el) => {
++                  blockRefs.current[i] = el
++                }}
++                data-step={i}
++                className={[
++                  'flex min-h-[62vh] flex-col justify-center transition-opacity duration-500 md:min-h-[85vh]',
++                  i === step ? 'opacity-100' : 'opacity-25',
++                ].join(' ')}
++              >
++                <span
++                  className={[
++                    'grid size-11 place-items-center rounded-full text-lg font-bold transition-colors duration-500',
++                    i === step ? 'bg-brand-600 text-white' : 'bg-slate-200 text-slate-500',
++                  ].join(' ')}
++                >
++                  {i + 1}
++                </span>
++                <h3 className="mt-5 text-2xl font-bold tracking-tight text-ink md:text-3xl">{s.title}</h3>
++                <p className="mt-3 max-w-md text-[17px] leading-relaxed text-slate-600">{s.body}</p>
++              </div>
++            </li>
++          ))}
++        </ol>
++      </div>
++    </section>
++  )
++}
++
++function MenuSection() {
++  return (
++    <section className="border-t border-slate-200 bg-white">
++      <div className="mx-auto max-w-6xl px-5 py-20 md:py-28">
++        <Reveal>
++          <h2 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">메뉴 구성</h2>
++        </Reveal>
++        <ul className="mt-10 grid gap-x-12 md:grid-cols-2">
++          {MENU_ITEMS.map(({ path, label, icon: Icon, description, comingSoon }, i) => (
++            <li key={path} className="border-t border-slate-200">
++              <Reveal delay={(i % 2) * 100} className="flex gap-4 py-6">
++                <Icon className="mt-0.5 size-6 shrink-0 text-brand-600" />
++                <div>
++                  <h3 className="flex items-center gap-2 text-lg font-bold text-ink">
++                    {label}
++                    {comingSoon && (
++                      <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">준비 중</span>
++                    )}
++                  </h3>
++                  <p className="mt-1 leading-relaxed text-slate-600">{description}</p>
++                </div>
++              </Reveal>
++            </li>
++          ))}
++        </ul>
++      </div>
++    </section>
++  )
++}
++
++function SafetySection() {
++  return (
++    <section className="bg-ink text-white">
++      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 md:grid-cols-2 md:py-24">
++        <Reveal>
++          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">신고와 관리</h2>
++          <p className="mt-4 max-w-md leading-relaxed text-indigo-200">
++            익명 소통을 지원하는 대신, 문제가 되는 내용은 학과 구성원 누구나 신고할 수 있습니다.
++          </p>
++        </Reveal>
++        <div className="space-y-6">
++          <Reveal delay={100} className="flex gap-4">
++            <Flag className="mt-1 size-5 shrink-0 text-indigo-300" />
++            <p className="leading-relaxed text-indigo-100">
++              게시글, 댓글, 채팅을 신고하면 관리자 화면에 바로 알림이 뜹니다. 관리자는 익명 글의 실제 작성자를 확인할 수
++              있습니다.
++            </p>
++          </Reveal>
++          <Reveal delay={200} className="flex gap-4">
++            <ShieldCheck className="mt-1 size-5 shrink-0 text-indigo-300" />
++            <p className="leading-relaxed text-indigo-100">
++              서로 다른 3명이 신고한 내용은 관리자가 확인하기 전까지 자동으로 가려집니다.
++            </p>
++          </Reveal>
++        </div>
++      </div>
++    </section>
++  )
++}
++
++export default function WelcomePage() {
++  const location = useLocation()
++  const { progress, scrolled } = useScrollProgress()
++  // 로그인 전에 특정 화면으로 들어왔다면, 로그인 후 그 화면으로 돌아가도록 전달
++  const authState = location.state
++
++  return (
++    <div className="min-h-full bg-slate-50">
++      <div
++        className="fixed top-0 left-0 z-50 h-0.5 bg-brand-600 transition-[width] duration-150"
++        style={{ width: `${progress * 100}%` }}
++      />
++
++      <header
++        className={[
++          'fixed inset-x-0 top-0 z-40 transition-all duration-300',
++          scrolled ? 'border-b border-slate-200 bg-white/90 backdrop-blur' : 'bg-transparent',
++        ].join(' ')}
++      >
++        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
++          <span className="flex items-center gap-2">
++            <span className="grid size-8 place-items-center rounded-lg bg-brand-600 text-xs font-bold text-white">SM</span>
++            <span className="text-sm font-bold tracking-tight text-ink">SMART MEDIA CONNECT</span>
++          </span>
++          <nav className="flex items-center gap-1">
++            <Link to="/login" state={authState} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:text-ink">
++              로그인
++            </Link>
++            <Link
++              to="/signup"
++              state={authState}
++              className="rounded-lg bg-ink px-3.5 py-2 text-sm font-semibold text-white transition active:scale-[0.97]"
++            >
++              회원가입
++            </Link>
++          </nav>
++        </div>
++      </header>
++
++      <main>
++        <HeroSection authState={authState} />
++        <ProblemSection />
++        <FlowStorySection />
++        <MenuSection />
++        <SafetySection />
++
++        <section className="mx-auto max-w-6xl px-5 py-20 text-center md:py-28">
++          <Reveal>
++            <h2 className="text-2xl font-bold tracking-tight text-ink md:text-3xl">
++              스마트미디어학과 재학생과 졸업생은
++              <br className="sm:hidden" /> 가입 후 이용할 수 있습니다
++            </h2>
++            <div className="mt-8 flex justify-center gap-3">
++              <Link
++                to="/signup"
++                state={authState}
++                className="rounded-xl bg-brand-600 px-6 py-3.5 text-[15px] font-semibold text-white transition hover:bg-brand-700 active:scale-[0.97]"
++              >
++                회원가입
++              </Link>
++              <Link
++                to="/login"
++                state={authState}
++                className="rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-[15px] font-semibold text-ink transition hover:border-slate-400 active:scale-[0.97]"
++              >
++                로그인
++              </Link>
++            </div>
++          </Reveal>
++        </section>
++      </main>
++
++      <footer className="border-t border-slate-200 py-8 text-center text-xs text-slate-400">© 스마트미디어학과</footer>
++    </div>
++  )
++}
+-- 
+2.43.0
+
