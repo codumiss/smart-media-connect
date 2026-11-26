@@ -1,0 +1,3903 @@
+From c3ce20103eea9336071823e54d04093deb727511 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Thu, 26 Nov 2026 19:58:00 +0900
+Subject: [PATCH] =?UTF-8?q?feat:=20=ED=99=88=C2=B7=EC=86=8C=ED=86=B5=C2=B7?=
+ =?UTF-8?q?=ED=95=99=EA=B3=BC=20=EC=9D=BC=EC=A0=95=C2=B7=EC=A0=95=EB=B3=B4?=
+ =?UTF-8?q?=EB=B0=A9=C2=B7=ED=8C=80=EB=A3=B8=20=ED=99=94=EB=A9=B4=20?=
+ =?UTF-8?q?=EA=B5=AC=ED=98=84?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- 홈: 다가오는 일정, 학과 공지, 모집 중인 팀, 내 팀룸, 정보방 최근 글
+- 소통: 소통방 목록·만들기(익명/실명), 실시간 채팅, 1:1 대화, 메시지 신고·삭제
+- 학과 일정: 공지사항(상단 고정, 펼쳐 보기), 월간 캘린더, 다가오는 일정
+- 정보방: 카테고리·검색, 글쓰기(익명), 상세, 공감, 댓글(익명), 신고, 관리자 숨김
+  - 팀원 모집: 모집 정보, 팀룸 함께 만들기, 신청·취소, 승인·거절, 모집 마감
+- 팀룸: 목록, 만들기, 방 키 참여·복사, 팀 채팅, 회의 일정, 자료 링크, 팀원 관리
+- 관리자: 공지·학사 일정 등록·수정·삭제, 공지와 일정 연결
+- 알림 벨: 신청·승인·팀 참여·신고 알림 실시간 표시
+- DB: 팀룸 생성 직후 방장이 결과를 받을 수 있게 조회 정책 수정
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NXX4AJxKfjQPkUEUdWByWs
+---
+ README.md                                     |  12 +-
+ src/App.tsx                                   |   8 +
+ src/components/chat/ChatRoom.tsx              | 224 ++++++++
+ src/components/layout/AppLayout.tsx           |   6 +-
+ src/components/layout/NotificationBell.tsx    | 141 +++++
+ src/components/layout/Sidebar.tsx             |   4 +-
+ src/components/ui/index.tsx                   | 181 +++++++
+ src/lib/format.ts                             |  54 ++
+ src/lib/schedule.ts                           |  34 ++
+ src/pages/admin/AdminNoticesPage.tsx          | 344 ++++++++++++-
+ src/pages/chat/ChatPage.tsx                   | 222 +++++++-
+ src/pages/chat/ChatRoomPage.tsx               | 113 ++++
+ src/pages/community/Comments.tsx              | 153 ++++++
+ src/pages/community/CommunityPage.tsx         | 156 +++++-
+ src/pages/community/PostDetailPage.tsx        | 183 +++++++
+ src/pages/community/PostWritePage.tsx         | 226 ++++++++
+ src/pages/community/RecruitPanel.tsx          | 254 +++++++++
+ src/pages/community/shared.ts                 |  43 ++
+ src/pages/home/HomePage.tsx                   | 270 +++++++++-
+ src/pages/notice/NoticePage.tsx               | 301 ++++++++++-
+ src/pages/team/TeamRoomDetailPage.tsx         | 481 ++++++++++++++++++
+ src/pages/team/TeamRoomPage.tsx               | 200 +++++++-
+ ...20261126000800_team_rooms_owner_select.sql |   6 +
+ 23 files changed, 3587 insertions(+), 29 deletions(-)
+ create mode 100644 src/components/chat/ChatRoom.tsx
+ create mode 100644 src/components/layout/NotificationBell.tsx
+ create mode 100644 src/components/ui/index.tsx
+ create mode 100644 src/lib/format.ts
+ create mode 100644 src/lib/schedule.ts
+ create mode 100644 src/pages/chat/ChatRoomPage.tsx
+ create mode 100644 src/pages/community/Comments.tsx
+ create mode 100644 src/pages/community/PostDetailPage.tsx
+ create mode 100644 src/pages/community/PostWritePage.tsx
+ create mode 100644 src/pages/community/RecruitPanel.tsx
+ create mode 100644 src/pages/community/shared.ts
+ create mode 100644 src/pages/team/TeamRoomDetailPage.tsx
+ create mode 100644 supabase/migrations/20261126000800_team_rooms_owner_select.sql
+
+diff --git a/README.md b/README.md
+index c06784e..9a9273b 100644
+--- a/README.md
++++ b/README.md
+@@ -44,6 +44,9 @@ src/
+ ├─ components/
+ │  ├─ auth/guards.tsx       # RequireAuth, RequireAdmin, GuestOnly
+ │  ├─ layout/               # AppLayout, Sidebar(PC), BottomNav(모바일), Logo, UserBadge
++│  ├─ ui/                   # Button, Card, Modal, Tabs, Field, EmptyState 등 공통 UI
++│  ├─ chat/ChatRoom.tsx     # 채팅 화면 (소통방·1:1·팀 채팅 공용, 실시간)
++│  ├─ motion/               # Reveal(스크롤 등장), PageTransition(화면 전환)
+ │  ├─ ReportButton.tsx      # 신고 버튼 (게시글·댓글·채팅에 붙여서 사용)
+ │  └─ PlaceholderPage.tsx   # 기능 구현 전 임시 화면
+ ├─ lib/
+@@ -54,7 +57,13 @@ src/
+ └─ pages/
+    ├─ auth/                 # 로그인, 회원가입
+    ├─ admin/                # 관리자 전용 (별도 레이아웃): 대시보드, 신고, 회원, 공지·일정
+-   ├─ home/  chat/  notice/  community/  team/  mypage/
++   ├─ welcome/              # 로그인 전 소개 화면 (휴대폰 시연, 스크롤 전환)
++   ├─ home/                 # 대시보드: 다가오는 일정, 공지, 모집 중인 팀, 내 팀룸, 최근 글
++   ├─ chat/                 # 소통방 목록·만들기, 채팅방(실시간), 1:1 대화
++   ├─ notice/               # 공지사항, 학사 일정 캘린더
++   ├─ community/            # 정보방 목록·글쓰기·상세, 댓글, 팀원 모집·신청·승인
++   ├─ team/                 # 팀룸 목록·만들기·방 키 참여, 상세(채팅·회의 일정·자료·팀원)
++   ├─ mypage/
+    ├─ contest/              # 확장 계획 — '준비 중' 화면
+    ├─ MorePage.tsx          # 모바일 '더보기'
+    └─ NotFoundPage.tsx
+@@ -93,6 +102,7 @@ const { profile, isAdmin, displayName } = useAuth()   // displayName: 관리자
+ | `..._reports.sql` | 신고, 관리자 알림, 3건 누적 자동 숨김, 관리자 처리 함수 |
+ | `..._grants_realtime.sql` | 컬럼 단위 권한, 함수 실행 권한, Realtime(메시지·알림·신고) |
+ | `..._seed.sql` | 기본 소통방 3개, 공모전 일정 |
++| `..._team_rooms_owner_select.sql` | 팀룸 생성 직후 방장이 결과를 받을 수 있게 조회 정책 수정 |
+ 
+ 권한 규칙 (RLS)
+ 
+diff --git a/src/App.tsx b/src/App.tsx
+index c0205da..8df8176 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -11,13 +11,17 @@ import AdminReportsPage from './pages/admin/AdminReportsPage'
+ import LoginPage from './pages/auth/LoginPage'
+ import SignupPage from './pages/auth/SignupPage'
+ import ChatPage from './pages/chat/ChatPage'
++import ChatRoomPage from './pages/chat/ChatRoomPage'
+ import CommunityPage from './pages/community/CommunityPage'
++import PostDetailPage from './pages/community/PostDetailPage'
++import PostWritePage from './pages/community/PostWritePage'
+ import ContestPage from './pages/contest/ContestPage'
+ import HomePage from './pages/home/HomePage'
+ import MorePage from './pages/MorePage'
+ import MyPage from './pages/mypage/MyPage'
+ import NotFoundPage from './pages/NotFoundPage'
+ import NoticePage from './pages/notice/NoticePage'
++import TeamRoomDetailPage from './pages/team/TeamRoomDetailPage'
+ import TeamRoomPage from './pages/team/TeamRoomPage'
+ import WelcomePage from './pages/welcome/WelcomePage'
+ 
+@@ -44,9 +48,13 @@ export default function App() {
+             <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
+               <Route index element={<HomePage />} />
+               <Route path="chat" element={<ChatPage />} />
++              <Route path="chat/:id" element={<ChatRoomPage />} />
+               <Route path="notice" element={<NoticePage />} />
+               <Route path="community" element={<CommunityPage />} />
++              <Route path="community/new" element={<PostWritePage />} />
++              <Route path="community/:id" element={<PostDetailPage />} />
+               <Route path="team" element={<TeamRoomPage />} />
++              <Route path="team/:id" element={<TeamRoomDetailPage />} />
+               <Route path="contest" element={<ContestPage />} />
+               <Route path="mypage" element={<MyPage />} />
+               <Route path="more" element={<MorePage />} />
+diff --git a/src/components/chat/ChatRoom.tsx b/src/components/chat/ChatRoom.tsx
+new file mode 100644
+index 0000000..38271a9
+--- /dev/null
++++ b/src/components/chat/ChatRoom.tsx
+@@ -0,0 +1,224 @@
++import { SendHorizontal, Trash2 } from 'lucide-react'
++import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { formatTime } from '../../lib/format'
++import { db } from '../../lib/supabase'
++import { ReportButton } from '../ReportButton'
++import { Avatar } from '../ui'
++
++type Message = {
++  id: string
++  room_id: string
++  body: string
++  is_anonymous: boolean
++  author_id: string | null
++  anon_label: string | null
++  is_hidden: boolean
++  created_at: string
++}
++
++/**
++ * 채팅 화면 (소통방, 1:1, 팀 채팅 공용)
++ * - 새 메시지는 Supabase Realtime 으로 바로 들어옴
++ * - 익명방은 이름 대신 '익명1', '익명2' 로 표시. 내 메시지는 오른쪽
++ */
++export function ChatRoom({ roomId, className = '' }: { roomId: string; className?: string }) {
++  const { profile } = useAuth()
++  const [messages, setMessages] = useState<Message[]>([])
++  const [names, setNames] = useState<Record<string, string>>({})
++  const [mine, setMine] = useState<Set<string>>(new Set())
++  const [text, setText] = useState('')
++  const [sending, setSending] = useState(false)
++  const [error, setError] = useState('')
++  const listRef = useRef<HTMLDivElement | null>(null)
++  const [selectedId, setSelectedId] = useState<string | null>(null)
++  const namesRef = useRef(names)
++  useEffect(() => {
++    namesRef.current = names
++  }, [names])
++
++  const loadNames = useCallback(async (ids: (string | null)[]) => {
++    const missing = [...new Set(ids.filter((v): v is string => !!v && !(v in namesRef.current)))]
++    if (missing.length === 0) return
++    const { data } = await db().from('profiles').select('id, name').in('id', missing)
++    const rows = (data as { id: string; name: string }[] | null) ?? []
++    setNames((prev) => ({ ...prev, ...Object.fromEntries(rows.map((r) => [r.id, r.name])) }))
++  }, [])
++
++  useEffect(() => {
++    let active = true
++    const client = db()
++
++    async function load() {
++      const { data, error: loadError } = await client
++        .from('messages')
++        .select('id, room_id, body, is_anonymous, author_id, anon_label, is_hidden, created_at')
++        .eq('room_id', roomId)
++        .order('created_at', { ascending: false })
++        .limit(150)
++      if (!active) return
++      if (loadError) setError(toKoreanError(loadError))
++      const list = ((data as Message[] | null) ?? []).reverse()
++      setMessages(list)
++      void loadNames(list.map((m) => m.author_id))
++      if (list.length > 0) {
++        const { data: own } = await client
++          .from('content_authors')
++          .select('target_id')
++          .eq('target_type', 'message')
++          .in(
++            'target_id',
++            list.map((m) => m.id),
++          )
++        if (active) setMine(new Set(((own as { target_id: string }[] | null) ?? []).map((r) => r.target_id)))
++      }
++    }
++    void load()
++
++    const channel = client
++      .channel(`messages-${roomId}`)
++      .on(
++        'postgres_changes',
++        { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
++        (payload) => {
++          const message = payload.new as Message
++          setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]))
++          void loadNames([message.author_id])
++        },
++      )
++      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (payload) => {
++        const oldId = (payload.old as { id?: string }).id
++        if (oldId) setMessages((prev) => prev.filter((m) => m.id !== oldId))
++      })
++      .subscribe()
++
++    return () => {
++      active = false
++      void client.removeChannel(channel)
++    }
++  }, [roomId, loadNames])
++
++  // 새 메시지가 오면 맨 아래로
++  useEffect(() => {
++    const el = listRef.current
++    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
++  }, [messages.length])
++
++  async function send(event: FormEvent) {
++    event.preventDefault()
++    const body = text.trim()
++    if (!body || sending) return
++    setSending(true)
++    setError('')
++    const { data, error: sendError } = await db()
++      .from('messages')
++      .insert({ room_id: roomId, body })
++      .select('id, room_id, body, is_anonymous, author_id, anon_label, is_hidden, created_at')
++      .single()
++    setSending(false)
++    if (sendError || !data) {
++      setError(toKoreanError(sendError))
++      return
++    }
++    const message = data as Message
++    setText('')
++    setMine((prev) => new Set(prev).add(message.id))
++    setMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]))
++  }
++
++  async function remove(id: string) {
++    if (!window.confirm('메시지를 삭제할까요?')) return
++    const { error: deleteError } = await db().from('messages').delete().eq('id', id)
++    if (deleteError) setError(toKoreanError(deleteError))
++    else setMessages((prev) => prev.filter((m) => m.id !== id))
++  }
++
++  const isMine = (m: Message) => mine.has(m.id) || (!!m.author_id && m.author_id === profile?.id)
++
++  return (
++    <div className={`flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white ${className}`}>
++      <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4">
++        {messages.length === 0 && (
++          <p className="py-10 text-center text-sm text-slate-400">첫 메시지를 보내 보세요.</p>
++        )}
++        {messages.map((m, i) => {
++          const me = isMine(m)
++          const name = m.is_anonymous ? (m.anon_label ?? '익명') : m.author_id ? (names[m.author_id] ?? '…') : '탈퇴한 회원'
++          const prev = messages[i - 1]
++          const sameAuthor =
++            prev && (prev.is_anonymous ? prev.anon_label === m.anon_label : prev.author_id === m.author_id)
++          return (
++            <div key={m.id} className={`group flex animate-rise gap-2 ${me ? 'flex-row-reverse' : ''}`}>
++              {!me && (sameAuthor ? <span className="w-7 shrink-0" /> : <Avatar name={name} size="sm" muted={m.is_anonymous} />)}
++              <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
++                {!me && !sameAuthor && <span className="mb-1 text-xs text-slate-500">{name}</span>}
++                <div className={`flex items-end gap-1.5 ${me ? 'flex-row-reverse' : ''}`}>
++                  <span
++                    role="button"
++                    tabIndex={0}
++                    onClick={() => setSelectedId((v) => (v === m.id ? null : m.id))}
++                    onKeyDown={(e) => {
++                      if (e.key === 'Enter') setSelectedId((v) => (v === m.id ? null : m.id))
++                    }}
++                    className={[
++                      'cursor-pointer rounded-2xl px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap',
++                      me ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800',
++                      m.is_hidden ? 'opacity-50' : '',
++                    ].join(' ')}
++                  >
++                    {m.body}
++                  </span>
++                  <span className="shrink-0 text-[10px] text-slate-400">{formatTime(m.created_at)}</span>
++                </div>
++                {/* 메시지를 누르면(PC 는 마우스를 올리면) 신고·삭제 버튼 표시 */}
++                <div className={`mt-0.5 gap-2 group-hover:flex ${selectedId === m.id ? 'flex' : 'hidden'}`}>
++                  {me ? (
++                    <button
++                      type="button"
++                      onClick={() => void remove(m.id)}
++                      className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-red-500"
++                    >
++                      <Trash2 className="size-3" />
++                      삭제
++                    </button>
++                  ) : (
++                    <ReportButton targetType="message" targetId={m.id} />
++                  )}
++                </div>
++              </div>
++            </div>
++          )
++        })}
++      </div>
++
++      {error && <p className="border-t border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>}
++
++      <form onSubmit={send} className="flex items-end gap-2 border-t border-slate-200 p-3">
++        <textarea
++          value={text}
++          onChange={(e) => setText(e.target.value)}
++          onKeyDown={(e) => {
++            // Enter 전송, Shift+Enter 줄바꿈 (한글 조합 중에는 전송하지 않음)
++            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
++              e.preventDefault()
++              e.currentTarget.form?.requestSubmit()
++            }
++          }}
++          rows={1}
++          maxLength={2000}
++          placeholder="메시지 입력"
++          className="max-h-32 min-h-10 flex-1 resize-none rounded-xl bg-slate-100 px-3.5 py-2.5 text-base outline-none focus:bg-white focus:ring-2 focus:ring-brand-100 md:text-sm"
++        />
++        <button
++          type="submit"
++          aria-label="보내기"
++          disabled={!text.trim() || sending}
++          className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white transition active:scale-90 disabled:bg-slate-200 disabled:text-slate-400"
++        >
++          <SendHorizontal className="size-4" />
++        </button>
++      </form>
++    </div>
++  )
++}
+diff --git a/src/components/layout/AppLayout.tsx b/src/components/layout/AppLayout.tsx
+index 06b75e3..4e066ba 100644
+--- a/src/components/layout/AppLayout.tsx
++++ b/src/components/layout/AppLayout.tsx
+@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
+ import { PageTransition } from '../motion/PageTransition'
+ import { BottomNav } from './BottomNav'
+ import { Logo } from './Logo'
++import { NotificationBell } from './NotificationBell'
+ import { Sidebar } from './Sidebar'
+ import { UserBadge } from './UserBadge'
+ 
+@@ -14,7 +15,10 @@ export function AppLayout() {
+         {/* 모바일 상단 바 */}
+         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+           <Logo />
+-          <UserBadge compact />
++          <div className="flex items-center gap-1">
++            <NotificationBell placement="header" />
++            <UserBadge compact />
++          </div>
+         </header>
+ 
+         <main className="flex-1 overflow-y-auto px-4 pt-5 pb-24 md:px-10 md:py-8">
+diff --git a/src/components/layout/NotificationBell.tsx b/src/components/layout/NotificationBell.tsx
+new file mode 100644
+index 0000000..8f6c11e
+--- /dev/null
++++ b/src/components/layout/NotificationBell.tsx
+@@ -0,0 +1,141 @@
++import { Bell } from 'lucide-react'
++import { useCallback, useEffect, useId, useRef, useState } from 'react'
++import { useNavigate } from 'react-router-dom'
++import { useAuth } from '../../lib/auth'
++import { timeAgo } from '../../lib/format'
++import { supabase } from '../../lib/supabase'
++
++type Notification = {
++  id: string
++  type: string
++  title: string
++  body: string | null
++  link: string | null
++  is_read: boolean
++  created_at: string
++}
++
++/**
++ * 알림 벨: 참여 신청, 승인 결과, 팀원 참여, (관리자) 신고 알림
++ * 새 알림은 실시간으로 들어오고, 누르면 해당 화면으로 이동하며 읽음 처리
++ */
++export function NotificationBell({ placement }: { placement: 'sidebar' | 'header' }) {
++  const { profile } = useAuth()
++  const navigate = useNavigate()
++  const channelId = useId()
++  const [items, setItems] = useState<Notification[]>([])
++  const [open, setOpen] = useState(false)
++  const panelRef = useRef<HTMLDivElement | null>(null)
++
++  const load = useCallback(async () => {
++    if (!supabase || !profile) return
++    const { data } = await supabase
++      .from('notifications')
++      .select('id, type, title, body, link, is_read, created_at')
++      .order('created_at', { ascending: false })
++      .limit(30)
++    setItems((data as Notification[] | null) ?? [])
++  }, [profile])
++
++  useEffect(() => {
++    if (!supabase || !profile) return
++    const client = supabase
++    void load()
++    const channel = client
++      .channel(`notifications-${channelId}`)
++      .on(
++        'postgres_changes',
++        { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${profile.id}` },
++        (payload) => setItems((prev) => [payload.new as Notification, ...prev].slice(0, 30)),
++      )
++      .subscribe()
++    return () => {
++      void client.removeChannel(channel)
++    }
++  }, [profile, load, channelId])
++
++  // 바깥을 누르면 닫기
++  useEffect(() => {
++    if (!open) return
++    const onDown = (e: MouseEvent) => {
++      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false)
++    }
++    document.addEventListener('mousedown', onDown)
++    return () => document.removeEventListener('mousedown', onDown)
++  }, [open])
++
++  const unread = items.filter((n) => !n.is_read).length
++
++  async function openItem(item: Notification) {
++    setOpen(false)
++    if (!item.is_read && supabase) {
++      setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)))
++      await supabase.from('notifications').update({ is_read: true }).eq('id', item.id)
++    }
++    if (item.link) navigate(item.link)
++  }
++
++  async function readAll() {
++    if (!supabase || unread === 0) return
++    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })))
++    await supabase.from('notifications').update({ is_read: true }).eq('is_read', false)
++  }
++
++  return (
++    <div ref={panelRef} className="relative">
++      <button
++        type="button"
++        aria-label={`알림 ${unread}개`}
++        onClick={() => setOpen((v) => !v)}
++        className="relative rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
++      >
++        <Bell className="size-5" />
++        {unread > 0 && (
++          <span className="absolute top-1 right-1 grid min-w-4 animate-pop place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
++            {unread > 9 ? '9+' : unread}
++          </span>
++        )}
++      </button>
++
++      {open && (
++        <div
++          className={[
++            'fixed z-50 flex max-h-[70vh] animate-rise flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl',
++            placement === 'header' ? 'inset-x-3 top-14' : 'top-4 left-[15.5rem] w-80',
++          ].join(' ')}
++        >
++          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
++            <p className="font-semibold">알림</p>
++            <button type="button" onClick={() => void readAll()} className="text-xs text-slate-500 hover:text-slate-900">
++              모두 읽음
++            </button>
++          </div>
++          {items.length === 0 ? (
++            <p className="px-4 py-10 text-center text-sm text-slate-400">새 알림이 없어요.</p>
++          ) : (
++            <ul className="divide-y divide-slate-100 overflow-y-auto">
++              {items.map((item) => (
++                <li key={item.id}>
++                  <button
++                    type="button"
++                    onClick={() => void openItem(item)}
++                    className="flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50"
++                  >
++                    <span
++                      className={`mt-1.5 size-2 shrink-0 rounded-full ${item.is_read ? 'bg-transparent' : 'bg-brand-600'}`}
++                    />
++                    <span className="min-w-0 flex-1">
++                      <span className="block text-sm font-medium">{item.title}</span>
++                      {item.body && <span className="block truncate text-xs text-slate-500">{item.body}</span>}
++                      <span className="mt-0.5 block text-[11px] text-slate-400">{timeAgo(item.created_at)}</span>
++                    </span>
++                  </button>
++                </li>
++              ))}
++            </ul>
++          )}
++        </div>
++      )}
++    </div>
++  )
++}
+diff --git a/src/components/layout/Sidebar.tsx b/src/components/layout/Sidebar.tsx
+index f1824b6..1d47bb0 100644
+--- a/src/components/layout/Sidebar.tsx
++++ b/src/components/layout/Sidebar.tsx
+@@ -3,6 +3,7 @@ import { NAV_ITEMS } from '../../config/navigation'
+ import { useAdminAlerts } from '../../lib/adminAlerts'
+ import { useAuth } from '../../lib/auth'
+ import { Logo } from './Logo'
++import { NotificationBell } from './NotificationBell'
+ import { UserBadge } from './UserBadge'
+ 
+ /** PC(≥ md) 왼쪽 사이드바 */
+@@ -13,8 +14,9 @@ export function Sidebar() {
+ 
+   return (
+     <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:border-r md:border-slate-200 md:bg-white">
+-      <div className="px-5 py-5">
++      <div className="flex items-center justify-between py-5 pr-3 pl-5">
+         <Logo />
++        <NotificationBell placement="sidebar" />
+       </div>
+ 
+       <nav className="flex-1 space-y-1 px-3">
+diff --git a/src/components/ui/index.tsx b/src/components/ui/index.tsx
+new file mode 100644
+index 0000000..cc81c85
+--- /dev/null
++++ b/src/components/ui/index.tsx
+@@ -0,0 +1,181 @@
++import { X, type LucideIcon } from 'lucide-react'
++import { useEffect, type ButtonHTMLAttributes, type ReactNode } from 'react'
++
++/** 화면 제목 + 오른쪽 버튼 영역 */
++export function PageHeader({
++  title,
++  description,
++  icon: Icon,
++  action,
++}: {
++  title: string
++  description?: string
++  icon?: LucideIcon
++  action?: ReactNode
++}) {
++  return (
++    <div className="flex flex-wrap items-center justify-between gap-3">
++      <div className="flex min-w-0 items-center gap-3">
++        {Icon && (
++          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
++            <Icon className="size-5" />
++          </span>
++        )}
++        <div className="min-w-0">
++          <h1 className="truncate text-xl font-bold md:text-2xl">{title}</h1>
++          {description && <p className="text-sm text-slate-500">{description}</p>}
++        </div>
++      </div>
++      {action}
++    </div>
++  )
++}
++
++type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
++
++const BUTTON_CLASS: Record<ButtonVariant, string> = {
++  primary: 'bg-brand-600 text-white hover:bg-brand-700',
++  secondary: 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400',
++  danger: 'bg-red-600 text-white hover:bg-red-700',
++  ghost: 'text-slate-600 hover:bg-slate-100',
++}
++
++export function buttonClass(variant: ButtonVariant = 'primary', size: 'sm' | 'md' = 'md') {
++  return [
++    'inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
++    size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm',
++    BUTTON_CLASS[variant],
++  ].join(' ')
++}
++
++export function Button({
++  variant = 'primary',
++  size = 'md',
++  className = '',
++  type = 'button',
++  ...props
++}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: 'sm' | 'md' }) {
++  return <button type={type} className={`${buttonClass(variant, size)} ${className}`} {...props} />
++}
++
++export const inputClass =
++  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 md:text-sm'
++
++export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: ReactNode }) {
++  return (
++    <label className="block">
++      <span className="text-sm font-medium text-slate-700">{label}</span>
++      <div className="mt-1">{children}</div>
++      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
++    </label>
++  )
++}
++
++export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
++  return <div className={`rounded-2xl border border-slate-200 bg-white ${className}`}>{children}</div>
++}
++
++export function Spinner({ className = '' }: { className?: string }) {
++  return (
++    <div className={`flex justify-center py-10 ${className}`}>
++      <span className="size-6 animate-spin rounded-full border-[3px] border-brand-100 border-t-brand-600" />
++    </div>
++  )
++}
++
++/** 내용이 없을 때: 무엇을 하면 되는지 안내 */
++export function EmptyState({ icon: Icon, title, action }: { icon?: LucideIcon; title: string; action?: ReactNode }) {
++  return (
++    <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
++      {Icon && <Icon className="size-8 text-slate-300" />}
++      <p className="text-sm text-slate-500">{title}</p>
++      {action}
++    </div>
++  )
++}
++
++export function ErrorText({ children }: { children: ReactNode }) {
++  if (!children) return null
++  return <p className="animate-rise rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{children}</p>
++}
++
++/** 이름 첫 글자 동그라미 */
++export function Avatar({ name, size = 'md', muted = false }: { name: string; size?: 'sm' | 'md'; muted?: boolean }) {
++  return (
++    <span
++      className={[
++        'grid shrink-0 place-items-center rounded-full font-bold',
++        size === 'sm' ? 'size-7 text-[11px]' : 'size-9 text-sm',
++        muted ? 'bg-slate-200 text-slate-500' : 'bg-brand-100 text-brand-700',
++      ].join(' ')}
++    >
++      {name.slice(0, 1)}
++    </span>
++  )
++}
++
++/** 아래에서 올라오는(모바일) / 가운데 뜨는(PC) 창 */
++export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
++  useEffect(() => {
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key === 'Escape') onClose()
++    }
++    window.addEventListener('keydown', onKey)
++    return () => window.removeEventListener('keydown', onKey)
++  }, [onClose])
++
++  return (
++    <div
++      className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 md:items-center md:p-4"
++      onClick={onClose}
++      role="presentation"
++    >
++      <div
++        role="dialog"
++        aria-modal="true"
++        aria-label={title}
++        className="max-h-[90vh] w-full max-w-md animate-rise overflow-y-auto rounded-t-2xl bg-white p-5 md:rounded-2xl md:p-6"
++        onClick={(e) => e.stopPropagation()}
++      >
++        <div className="flex items-center justify-between">
++          <h2 className="text-lg font-bold">{title}</h2>
++          <button type="button" aria-label="닫기" onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100">
++            <X className="size-5" />
++          </button>
++        </div>
++        <div className="mt-4">{children}</div>
++      </div>
++    </div>
++  )
++}
++
++/** 탭 버튼 묶음 */
++export function Tabs<T extends string>({
++  value,
++  onChange,
++  items,
++}: {
++  value: T
++  onChange: (value: T) => void
++  items: { value: T; label: ReactNode }[]
++}) {
++  return (
++    <div className="flex gap-1 overflow-x-auto" role="tablist">
++      {items.map((item) => (
++        <button
++          key={item.value}
++          type="button"
++          role="tab"
++          aria-selected={value === item.value}
++          onClick={() => onChange(item.value)}
++          className={[
++            'shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
++            value === item.value ? 'bg-ink text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100',
++          ].join(' ')}
++        >
++          {item.label}
++        </button>
++      ))}
++    </div>
++  )
++}
+diff --git a/src/lib/format.ts b/src/lib/format.ts
+new file mode 100644
+index 0000000..d5d5f74
+--- /dev/null
++++ b/src/lib/format.ts
+@@ -0,0 +1,54 @@
++/** 날짜·시간 표시 */
++
++/** 방금 전 / 5분 전 / 3시간 전 / 2일 전 / 11월 3일 */
++export function timeAgo(value: string) {
++  const diff = (Date.now() - new Date(value).getTime()) / 1000
++  if (diff < 60) return '방금 전'
++  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`
++  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`
++  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}일 전`
++  return formatDate(value)
++}
++
++/** 11월 3일 (해가 다르면 2025년 11월 3일) */
++export function formatDate(value: string) {
++  const date = new Date(value)
++  const sameYear = date.getFullYear() === new Date().getFullYear()
++  return date.toLocaleDateString('ko-KR', { year: sameYear ? undefined : 'numeric', month: 'long', day: 'numeric' })
++}
++
++/** 11월 3일 (목) 오후 7:00 */
++export function formatDateTime(value: string) {
++  return new Date(value).toLocaleString('ko-KR', {
++    month: 'long',
++    day: 'numeric',
++    weekday: 'short',
++    hour: 'numeric',
++    minute: '2-digit',
++  })
++}
++
++/** 오후 7:05 */
++export function formatTime(value: string) {
++  return new Date(value).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
++}
++
++/** 로컬 날짜를 'YYYY-MM-DD' 로 (DB date 칸과 비교용) */
++export function toDateKey(date: Date) {
++  const y = date.getFullYear()
++  const m = String(date.getMonth() + 1).padStart(2, '0')
++  const d = String(date.getDate()).padStart(2, '0')
++  return `${y}-${m}-${d}`
++}
++
++/** 'YYYY-MM-DD' 까지 남은 날 (오늘 0, 지났으면 음수) */
++export function daysUntil(dateKey: string) {
++  const today = new Date(toDateKey(new Date()))
++  return Math.round((new Date(dateKey).getTime() - today.getTime()) / 86400000)
++}
++
++export function dDayLabel(dateKey: string) {
++  const d = daysUntil(dateKey)
++  if (d === 0) return 'D-day'
++  return d > 0 ? `D-${d}` : '마감'
++}
+diff --git a/src/lib/schedule.ts b/src/lib/schedule.ts
+new file mode 100644
+index 0000000..d78d961
+--- /dev/null
++++ b/src/lib/schedule.ts
+@@ -0,0 +1,34 @@
++export type ScheduleCategory = 'academic' | 'exam' | 'event' | 'council' | 'deadline'
++
++export type Schedule = {
++  id: string
++  title: string
++  description: string | null
++  category: ScheduleCategory
++  starts_on: string
++  ends_on: string | null
++  announcement_id: string | null
++}
++
++export type Announcement = {
++  id: string
++  title: string
++  body: string
++  is_pinned: boolean
++  created_at: string
++  updated_at: string
++}
++
++export const SCHEDULE_CATEGORY: Record<ScheduleCategory, { label: string; dot: string; chip: string }> = {
++  academic: { label: '학사', dot: 'bg-brand-500', chip: 'bg-brand-50 text-brand-700' },
++  exam: { label: '시험', dot: 'bg-red-500', chip: 'bg-red-50 text-red-700' },
++  event: { label: '행사', dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700' },
++  council: { label: '학생회', dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700' },
++  deadline: { label: '마감', dot: 'bg-slate-800', chip: 'bg-slate-100 text-slate-700' },
++}
++
++/** 일정이 그 날짜에 걸쳐 있는지 (dateKey: 'YYYY-MM-DD') */
++export function isOnDate(schedule: Schedule, dateKey: string) {
++  const end = schedule.ends_on ?? schedule.starts_on
++  return schedule.starts_on <= dateKey && dateKey <= end
++}
+diff --git a/src/pages/admin/AdminNoticesPage.tsx b/src/pages/admin/AdminNoticesPage.tsx
+index 96f56d6..8b2e5bd 100644
+--- a/src/pages/admin/AdminNoticesPage.tsx
++++ b/src/pages/admin/AdminNoticesPage.tsx
+@@ -1,15 +1,347 @@
+-import { Megaphone } from 'lucide-react'
++import { CalendarDays, Megaphone, Pencil, Pin, Trash2 } from 'lucide-react'
++import { useCallback, useEffect, useState, type FormEvent } from 'react'
++import { Button, Card, EmptyState, ErrorText, Field, Tabs, inputClass } from '../../components/ui'
++import { toKoreanError } from '../../lib/errors'
++import { formatDate } from '../../lib/format'
++import { SCHEDULE_CATEGORY, type Announcement, type Schedule, type ScheduleCategory } from '../../lib/schedule'
++import { db } from '../../lib/supabase'
+ 
+-// TODO: 공지(announcements)·학사 일정(schedules) 작성 화면
+-// DB 와 권한(관리자만 작성)은 준비돼 있음 → supabase/migrations/20261126000200_board.sql
++/** 관리자: 학과 공지 · 학사 일정 등록/수정/삭제 */
+ export default function AdminNoticesPage() {
++  const [tab, setTab] = useState<'notice' | 'schedule'>('notice')
++  const [announcements, setAnnouncements] = useState<Announcement[]>([])
++  const [schedules, setSchedules] = useState<Schedule[]>([])
++
++  const load = useCallback(async () => {
++    const client = db()
++    const [a, s] = await Promise.all([
++      client
++        .from('announcements')
++        .select('id, title, body, is_pinned, created_at, updated_at')
++        .order('is_pinned', { ascending: false })
++        .order('created_at', { ascending: false }),
++      client.from('schedules').select('id, title, description, category, starts_on, ends_on, announcement_id').order('starts_on'),
++    ])
++    setAnnouncements((a.data as Announcement[] | null) ?? [])
++    setSchedules((s.data as Schedule[] | null) ?? [])
++  }, [])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
+   return (
+     <section>
+       <h1 className="text-xl font-bold md:text-2xl">공지·일정 관리</h1>
+-      <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+-        <Megaphone className="mx-auto size-8 text-slate-300" />
+-        <p className="mt-3 text-sm text-slate-500">공지 작성·수정, 학사 일정 등록 화면이 들어갈 자리예요.</p>
++      <p className="mt-1 text-sm text-slate-500">여기서 등록한 공지와 일정은 학과 일정 화면과 홈에 바로 보여요.</p>
++      <div className="mt-5">
++        <Tabs
++          value={tab}
++          onChange={setTab}
++          items={[
++            { value: 'notice', label: `공지 ${announcements.length}` },
++            { value: 'schedule', label: `학사 일정 ${schedules.length}` },
++          ]}
++        />
++      </div>
++      <div className="mt-4">
++        {tab === 'notice' ? (
++          <AnnouncementManager items={announcements} onChange={load} />
++        ) : (
++          <ScheduleManager items={schedules} announcements={announcements} onChange={load} />
++        )}
+       </div>
+     </section>
+   )
+ }
++
++function AnnouncementManager({ items, onChange }: { items: Announcement[]; onChange: () => Promise<void> }) {
++  const empty = { title: '', body: '', isPinned: false }
++  const [form, setForm] = useState(empty)
++  const [editingId, setEditingId] = useState<string | null>(null)
++  const [error, setError] = useState('')
++  const [busy, setBusy] = useState(false)
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    if (!form.title.trim() || !form.body.trim()) return
++    setBusy(true)
++    const values = { title: form.title.trim(), body: form.body.trim(), is_pinned: form.isPinned }
++    const { error: saveError } = editingId
++      ? await db().from('announcements').update(values).eq('id', editingId)
++      : await db().from('announcements').insert(values)
++    setBusy(false)
++    if (saveError) {
++      setError(toKoreanError(saveError))
++      return
++    }
++    setForm(empty)
++    setEditingId(null)
++    setError('')
++    await onChange()
++  }
++
++  async function remove(id: string) {
++    if (!window.confirm('공지를 삭제할까요?')) return
++    await db().from('announcements').delete().eq('id', id)
++    await onChange()
++  }
++
++  return (
++    <div className="space-y-4">
++      <Card className="p-5">
++        <form onSubmit={submit} className="space-y-3">
++          <h2 className="font-semibold">{editingId ? '공지 수정' : '새 공지'}</h2>
++          <Field label="제목">
++            <input className={inputClass} maxLength={100} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
++          </Field>
++          <Field label="내용">
++            <textarea
++              className={`${inputClass} min-h-32`}
++              value={form.body}
++              onChange={(e) => setForm({ ...form, body: e.target.value })}
++            />
++          </Field>
++          <label className="flex items-center gap-2 text-sm">
++            <input
++              type="checkbox"
++              checked={form.isPinned}
++              onChange={(e) => setForm({ ...form, isPinned: e.target.checked })}
++              className="size-4 accent-brand-600"
++            />
++            상단 고정 (중요 공지)
++          </label>
++          <ErrorText>{error}</ErrorText>
++          <div className="flex justify-end gap-2">
++            {editingId && (
++              <Button
++                variant="secondary"
++                onClick={() => {
++                  setEditingId(null)
++                  setForm(empty)
++                }}
++              >
++                취소
++              </Button>
++            )}
++            <Button type="submit" disabled={busy || !form.title.trim() || !form.body.trim()}>
++              {editingId ? '수정' : '등록'}
++            </Button>
++          </div>
++        </form>
++      </Card>
++
++      <Card className="overflow-hidden">
++        {items.length === 0 ? (
++          <EmptyState icon={Megaphone} title="등록된 공지가 없어요." />
++        ) : (
++          <ul className="divide-y divide-slate-100">
++            {items.map((item) => (
++              <li key={item.id} className="flex items-center gap-3 px-4 py-3.5">
++                {item.is_pinned ? (
++                  <Pin className="size-4 shrink-0 fill-current text-brand-600" />
++                ) : (
++                  <Megaphone className="size-4 shrink-0 text-slate-300" />
++                )}
++                <div className="min-w-0 flex-1">
++                  <p className="truncate text-sm font-medium">{item.title}</p>
++                  <p className="text-xs text-slate-400">{formatDate(item.created_at)}</p>
++                </div>
++                <button
++                  type="button"
++                  aria-label="수정"
++                  onClick={() => {
++                    setEditingId(item.id)
++                    setForm({ title: item.title, body: item.body, isPinned: item.is_pinned })
++                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
++                  }}
++                  className="p-1.5 text-slate-400 hover:text-slate-700"
++                >
++                  <Pencil className="size-4" />
++                </button>
++                <button
++                  type="button"
++                  aria-label="삭제"
++                  onClick={() => void remove(item.id)}
++                  className="p-1.5 text-slate-400 hover:text-red-500"
++                >
++                  <Trash2 className="size-4" />
++                </button>
++              </li>
++            ))}
++          </ul>
++        )}
++      </Card>
++    </div>
++  )
++}
++
++function ScheduleManager({
++  items,
++  announcements,
++  onChange,
++}: {
++  items: Schedule[]
++  announcements: Announcement[]
++  onChange: () => Promise<void>
++}) {
++  const empty = { title: '', description: '', category: 'academic' as ScheduleCategory, startsOn: '', endsOn: '', announcementId: '' }
++  const [form, setForm] = useState(empty)
++  const [editingId, setEditingId] = useState<string | null>(null)
++  const [error, setError] = useState('')
++  const [busy, setBusy] = useState(false)
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    if (!form.title.trim() || !form.startsOn) return
++    setBusy(true)
++    const values = {
++      title: form.title.trim(),
++      description: form.description.trim() || null,
++      category: form.category,
++      starts_on: form.startsOn,
++      ends_on: form.endsOn || null,
++      announcement_id: form.announcementId || null,
++    }
++    const { error: saveError } = editingId
++      ? await db().from('schedules').update(values).eq('id', editingId)
++      : await db().from('schedules').insert(values)
++    setBusy(false)
++    if (saveError) {
++      setError(toKoreanError(saveError))
++      return
++    }
++    setForm(empty)
++    setEditingId(null)
++    setError('')
++    await onChange()
++  }
++
++  async function remove(id: string) {
++    if (!window.confirm('일정을 삭제할까요?')) return
++    await db().from('schedules').delete().eq('id', id)
++    await onChange()
++  }
++
++  return (
++    <div className="space-y-4">
++      <Card className="p-5">
++        <form onSubmit={submit} className="space-y-3">
++          <h2 className="font-semibold">{editingId ? '일정 수정' : '새 일정'}</h2>
++          <div className="grid gap-3 sm:grid-cols-2">
++            <Field label="일정 이름">
++              <input className={inputClass} maxLength={100} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
++            </Field>
++            <Field label="분류">
++              <select
++                className={inputClass}
++                value={form.category}
++                onChange={(e) => setForm({ ...form, category: e.target.value as ScheduleCategory })}
++              >
++                {(Object.keys(SCHEDULE_CATEGORY) as ScheduleCategory[]).map((key) => (
++                  <option key={key} value={key}>
++                    {SCHEDULE_CATEGORY[key].label}
++                  </option>
++                ))}
++              </select>
++            </Field>
++            <Field label="시작일">
++              <input type="date" className={inputClass} value={form.startsOn} onChange={(e) => setForm({ ...form, startsOn: e.target.value })} />
++            </Field>
++            <Field label="종료일" hint="하루짜리 일정이면 비워 두세요">
++              <input
++                type="date"
++                className={inputClass}
++                min={form.startsOn || undefined}
++                value={form.endsOn}
++                onChange={(e) => setForm({ ...form, endsOn: e.target.value })}
++              />
++            </Field>
++          </div>
++          <Field label="설명">
++            <input className={inputClass} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
++          </Field>
++          <Field label="관련 공지" hint="연결하면 공지에 일정이, 캘린더에 '관련 공지 보기'가 표시돼요">
++            <select
++              className={inputClass}
++              value={form.announcementId}
++              onChange={(e) => setForm({ ...form, announcementId: e.target.value })}
++            >
++              <option value="">연결 안 함</option>
++              {announcements.map((a) => (
++                <option key={a.id} value={a.id}>
++                  {a.title}
++                </option>
++              ))}
++            </select>
++          </Field>
++          <ErrorText>{error}</ErrorText>
++          <div className="flex justify-end gap-2">
++            {editingId && (
++              <Button
++                variant="secondary"
++                onClick={() => {
++                  setEditingId(null)
++                  setForm(empty)
++                }}
++              >
++                취소
++              </Button>
++            )}
++            <Button type="submit" disabled={busy || !form.title.trim() || !form.startsOn}>
++              {editingId ? '수정' : '등록'}
++            </Button>
++          </div>
++        </form>
++      </Card>
++
++      <Card className="overflow-hidden">
++        {items.length === 0 ? (
++          <EmptyState icon={CalendarDays} title="등록된 일정이 없어요." />
++        ) : (
++          <ul className="divide-y divide-slate-100">
++            {items.map((s) => (
++              <li key={s.id} className="flex items-center gap-3 px-4 py-3.5">
++                <span className={`size-2.5 shrink-0 rounded-full ${SCHEDULE_CATEGORY[s.category].dot}`} />
++                <div className="min-w-0 flex-1">
++                  <p className="truncate text-sm font-medium">{s.title}</p>
++                  <p className="text-xs text-slate-400">
++                    {SCHEDULE_CATEGORY[s.category].label} · {formatDate(s.starts_on)}
++                    {s.ends_on && s.ends_on !== s.starts_on ? ` ~ ${formatDate(s.ends_on)}` : ''}
++                  </p>
++                </div>
++                <button
++                  type="button"
++                  aria-label="수정"
++                  onClick={() => {
++                    setEditingId(s.id)
++                    setForm({
++                      title: s.title,
++                      description: s.description ?? '',
++                      category: s.category,
++                      startsOn: s.starts_on,
++                      endsOn: s.ends_on ?? '',
++                      announcementId: s.announcement_id ?? '',
++                    })
++                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'smooth' })
++                  }}
++                  className="p-1.5 text-slate-400 hover:text-slate-700"
++                >
++                  <Pencil className="size-4" />
++                </button>
++                <button
++                  type="button"
++                  aria-label="삭제"
++                  onClick={() => void remove(s.id)}
++                  className="p-1.5 text-slate-400 hover:text-red-500"
++                >
++                  <Trash2 className="size-4" />
++                </button>
++              </li>
++            ))}
++          </ul>
++        )}
++      </Card>
++    </div>
++  )
++}
+diff --git a/src/pages/chat/ChatPage.tsx b/src/pages/chat/ChatPage.tsx
+index 8e75019..3631bda 100644
+--- a/src/pages/chat/ChatPage.tsx
++++ b/src/pages/chat/ChatPage.tsx
+@@ -1,7 +1,221 @@
+-import { PlaceholderPage } from '../../components/PlaceholderPage'
+-import { findNavItem } from '../../config/navigation'
++import { ChevronRight, MessagesSquare, Plus, VenetianMask } from 'lucide-react'
++import { useCallback, useEffect, useState, type FormEvent } from 'react'
++import { Link, useNavigate } from 'react-router-dom'
++import { Avatar, Button, Card, EmptyState, ErrorText, Field, Modal, PageHeader, Spinner, Tabs, inputClass } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { timeAgo } from '../../lib/format'
++import { db } from '../../lib/supabase'
++
++type OpenRoom = {
++  id: string
++  name: string
++  description: string | null
++  is_anonymous: boolean
++  last_message_at: string | null
++}
++
++type DirectRoom = {
++  id: string
++  last_message_at: string | null
++  chat_members: { user_id: string; profiles: { name: string } | null }[]
++}
+ 
+-// TODO: 이 파일을 기능 브랜치에서 실제 화면으로 교체
+ export default function ChatPage() {
+-  return <PlaceholderPage item={findNavItem('/chat')!} />
++  const { profile } = useAuth()
++  const navigate = useNavigate()
++  const [tab, setTab] = useState<'open' | 'direct'>('open')
++  const [openRooms, setOpenRooms] = useState<OpenRoom[]>([])
++  const [directRooms, setDirectRooms] = useState<DirectRoom[]>([])
++  const [joined, setJoined] = useState<Set<string>>(new Set())
++  const [loading, setLoading] = useState(true)
++  const [creating, setCreating] = useState(false)
++
++  const load = useCallback(async () => {
++    if (!profile) return
++    const client = db()
++    const [openRes, directRes, joinedRes] = await Promise.all([
++      client
++        .from('chat_rooms')
++        .select('id, name, description, is_anonymous, last_message_at')
++        .eq('kind', 'open')
++        .order('last_message_at', { ascending: false, nullsFirst: false }),
++      client
++        .from('chat_rooms')
++        .select('id, last_message_at, chat_members(user_id, profiles(name))')
++        .eq('kind', 'direct')
++        .order('last_message_at', { ascending: false, nullsFirst: false }),
++      client.from('chat_members').select('room_id').eq('user_id', profile.id),
++    ])
++    setOpenRooms((openRes.data as OpenRoom[] | null) ?? [])
++    // 관리자는 모든 1:1 방이 조회되므로 내가 들어간 방만 표시
++    setDirectRooms(
++      ((directRes.data as DirectRoom[] | null) ?? []).filter((r) => r.chat_members.some((m) => m.user_id === profile.id)),
++    )
++    setJoined(new Set(((joinedRes.data as { room_id: string }[] | null) ?? []).map((r) => r.room_id)))
++    setLoading(false)
++  }, [profile])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  return (
++    <section>
++      <PageHeader
++        title="소통"
++        description="학년과 관계없이 익명·실명으로 이야기해요"
++        icon={MessagesSquare}
++        action={
++          <Button onClick={() => setCreating(true)}>
++            <Plus className="size-4" />
++            방 만들기
++          </Button>
++        }
++      />
++
++      <div className="mt-6">
++        <Tabs
++          value={tab}
++          onChange={setTab}
++          items={[
++            { value: 'open', label: '소통방' },
++            { value: 'direct', label: `1:1 대화${directRooms.length ? ` ${directRooms.length}` : ''}` },
++          ]}
++        />
++      </div>
++
++      <Card className="mt-4 overflow-hidden">
++        {loading ? (
++          <Spinner />
++        ) : tab === 'open' ? (
++          openRooms.length === 0 ? (
++            <EmptyState icon={MessagesSquare} title="소통방이 없어요. 첫 방을 만들어 보세요." />
++          ) : (
++            <ul className="divide-y divide-slate-100">
++              {openRooms.map((room, i) => (
++                <li key={room.id} className="animate-rise" style={{ animationDelay: `${i * 40}ms` }}>
++                  <Link to={`/chat/${room.id}`} className="flex items-center gap-3 px-4 py-4 hover:bg-slate-50 md:px-5">
++                    <span
++                      className={[
++                        'grid size-10 shrink-0 place-items-center rounded-xl',
++                        room.is_anonymous ? 'bg-ink text-white' : 'bg-brand-50 text-brand-600',
++                      ].join(' ')}
++                    >
++                      {room.is_anonymous ? <VenetianMask className="size-5" /> : <MessagesSquare className="size-5" />}
++                    </span>
++                    <div className="min-w-0 flex-1">
++                      <p className="flex items-center gap-1.5 font-semibold">
++                        <span className="truncate">{room.name}</span>
++                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
++                          {room.is_anonymous ? '익명' : '실명'}
++                        </span>
++                        {joined.has(room.id) && (
++                          <span className="shrink-0 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">
++                            참여 중
++                          </span>
++                        )}
++                      </p>
++                      <p className="truncate text-sm text-slate-500">{room.description ?? '설명 없음'}</p>
++                    </div>
++                    {room.last_message_at && (
++                      <span className="shrink-0 text-xs text-slate-400">{timeAgo(room.last_message_at)}</span>
++                    )}
++                    <ChevronRight className="size-4 shrink-0 text-slate-300" />
++                  </Link>
++                </li>
++              ))}
++            </ul>
++          )
++        ) : directRooms.length === 0 ? (
++          <EmptyState title="1:1 대화가 없어요. 정보방 글이나 팀원 목록에서 '1:1 대화'를 눌러 시작할 수 있어요." />
++        ) : (
++          <ul className="divide-y divide-slate-100">
++            {directRooms.map((room) => {
++              const other = room.chat_members.find((m) => m.user_id !== profile?.id)
++              const name = other?.profiles?.name ?? '알 수 없음'
++              return (
++                <li key={room.id}>
++                  <Link to={`/chat/${room.id}`} className="flex items-center gap-3 px-4 py-4 hover:bg-slate-50 md:px-5">
++                    <Avatar name={name} />
++                    <p className="flex-1 font-semibold">{name}</p>
++                    {room.last_message_at && <span className="text-xs text-slate-400">{timeAgo(room.last_message_at)}</span>}
++                    <ChevronRight className="size-4 text-slate-300" />
++                  </Link>
++                </li>
++              )
++            })}
++          </ul>
++        )}
++      </Card>
++
++      {creating && <CreateRoomModal onClose={() => setCreating(false)} onCreated={(id) => navigate(`/chat/${id}`)} />}
++    </section>
++  )
++}
++
++function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
++  const [name, setName] = useState('')
++  const [description, setDescription] = useState('')
++  const [anonymous, setAnonymous] = useState(false)
++  const [error, setError] = useState('')
++  const [submitting, setSubmitting] = useState(false)
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    if (!name.trim()) return
++    setSubmitting(true)
++    const { data, error: insertError } = await db()
++      .from('chat_rooms')
++      .insert({ name: name.trim(), description: description.trim() || null, is_anonymous: anonymous })
++      .select('id')
++      .single()
++    setSubmitting(false)
++    if (insertError || !data) {
++      setError(toKoreanError(insertError))
++      return
++    }
++    onCreated(data.id as string)
++  }
++
++  return (
++    <Modal title="소통방 만들기" onClose={onClose}>
++      <form onSubmit={submit} className="space-y-4">
++        <Field label="방 이름">
++          <input className={inputClass} maxLength={50} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
++        </Field>
++        <Field label="설명">
++          <input
++            className={inputClass}
++            maxLength={300}
++            value={description}
++            onChange={(e) => setDescription(e.target.value)}
++          />
++        </Field>
++        <div className="grid grid-cols-2 gap-2">
++          {[
++            { value: false, label: '실명방', desc: '이름이 보여요' },
++            { value: true, label: '익명방', desc: '익명1, 익명2로 보여요' },
++          ].map((opt) => (
++            <button
++              key={opt.label}
++              type="button"
++              onClick={() => setAnonymous(opt.value)}
++              className={[
++                'rounded-xl border p-3 text-left transition',
++                anonymous === opt.value ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-slate-200',
++              ].join(' ')}
++            >
++              <p className="text-sm font-semibold">{opt.label}</p>
++              <p className="text-xs text-slate-500">{opt.desc}</p>
++            </button>
++          ))}
++        </div>
++        <ErrorText>{error}</ErrorText>
++        <Button type="submit" className="w-full" disabled={submitting || !name.trim()}>
++          만들기
++        </Button>
++      </form>
++    </Modal>
++  )
+ }
+diff --git a/src/pages/chat/ChatRoomPage.tsx b/src/pages/chat/ChatRoomPage.tsx
+new file mode 100644
+index 0000000..1378cfc
+--- /dev/null
++++ b/src/pages/chat/ChatRoomPage.tsx
+@@ -0,0 +1,113 @@
++import { ArrowLeft, LogOut, VenetianMask } from 'lucide-react'
++import { useEffect, useState } from 'react'
++import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
++import { ChatRoom } from '../../components/chat/ChatRoom'
++import { EmptyState, ErrorText, Spinner } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { db } from '../../lib/supabase'
++
++type Room = {
++  id: string
++  kind: 'open' | 'team' | 'direct'
++  name: string | null
++  description: string | null
++  is_anonymous: boolean
++  team_room_id: string | null
++  chat_members: { user_id: string; profiles: { name: string } | null }[]
++}
++
++export default function ChatRoomPage() {
++  const { id = '' } = useParams()
++  const navigate = useNavigate()
++  const { profile } = useAuth()
++  const [room, setRoom] = useState<Room | null>(null)
++  const [ready, setReady] = useState(false)
++  const [error, setError] = useState('')
++
++  useEffect(() => {
++    let active = true
++    setReady(false)
++    async function enter() {
++      const client = db()
++      const { data } = await client
++        .from('chat_rooms')
++        .select('id, kind, name, description, is_anonymous, team_room_id, chat_members(user_id, profiles(name))')
++        .eq('id', id)
++        .maybeSingle()
++      const found = data as Room | null
++      // 공개 소통방은 들어오면 자동으로 참여
++      if (found?.kind === 'open' && !found.chat_members.some((m) => m.user_id === profile?.id)) {
++        const { error: joinError } = await client.from('chat_members').insert({ room_id: id })
++        if (joinError && joinError.code !== '23505') setError(toKoreanError(joinError))
++      }
++      if (!active) return
++      setRoom(found)
++      setReady(true)
++    }
++    void enter()
++    return () => {
++      active = false
++    }
++  }, [id, profile?.id])
++
++  async function leave() {
++    if (!window.confirm('이 방에서 나갈까요?')) return
++    const { error: leaveError } = await db().from('chat_members').delete().eq('room_id', id).eq('user_id', profile?.id ?? '')
++    if (leaveError) setError(toKoreanError(leaveError))
++    else navigate('/chat', { replace: true })
++  }
++
++  if (!ready) return <Spinner />
++  if (!room) {
++    return (
++      <EmptyState
++        title="방을 찾을 수 없어요."
++        action={
++          <Link to="/chat" className="text-sm font-semibold text-brand-600">
++            소통으로
++          </Link>
++        }
++      />
++    )
++  }
++  if (room.kind === 'team' && room.team_room_id) return <Navigate to={`/team/${room.team_room_id}`} replace />
++
++  const title =
++    room.kind === 'direct'
++      ? (room.chat_members.find((m) => m.user_id !== profile?.id)?.profiles?.name ?? '1:1 대화')
++      : (room.name ?? '')
++
++  return (
++    <section>
++      <div className="flex items-center gap-2">
++        <Link to="/chat" aria-label="소통 목록" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
++          <ArrowLeft className="size-5" />
++        </Link>
++        <div className="min-w-0 flex-1">
++          <h1 className="flex items-center gap-2 truncate text-lg font-bold md:text-xl">
++            {room.is_anonymous && <VenetianMask className="size-5 shrink-0 text-slate-500" />}
++            {title}
++          </h1>
++          <p className="truncate text-xs text-slate-500">
++            {room.kind === 'direct'
++              ? '1:1 대화'
++              : `${room.is_anonymous ? '익명방' : '실명방'} · ${room.description ?? ''}`}
++          </p>
++        </div>
++        <button
++          type="button"
++          onClick={() => void leave()}
++          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
++        >
++          <LogOut className="size-3.5" />
++          나가기
++        </button>
++      </div>
++      <div className="mt-2">
++        <ErrorText>{error}</ErrorText>
++      </div>
++      <ChatRoom roomId={room.id} className="mt-3 h-[calc(100dvh-14rem)] md:h-[calc(100dvh-10rem)]" />
++    </section>
++  )
++}
+diff --git a/src/pages/community/Comments.tsx b/src/pages/community/Comments.tsx
+new file mode 100644
+index 0000000..24e99ae
+--- /dev/null
++++ b/src/pages/community/Comments.tsx
+@@ -0,0 +1,153 @@
++import { Trash2 } from 'lucide-react'
++import { useCallback, useEffect, useState, type FormEvent } from 'react'
++import { ReportButton } from '../../components/ReportButton'
++import { Avatar, Button, ErrorText } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { timeAgo } from '../../lib/format'
++import { db } from '../../lib/supabase'
++
++type Comment = {
++  id: string
++  body: string
++  is_anonymous: boolean
++  is_hidden: boolean
++  created_at: string
++  author: { nickname: string } | null
++}
++
++export function Comments({ postId }: { postId: string }) {
++  const { isAdmin } = useAuth()
++  const [comments, setComments] = useState<Comment[]>([])
++  const [mine, setMine] = useState<Set<string>>(new Set())
++  const [body, setBody] = useState('')
++  const [anonymous, setAnonymous] = useState(false)
++  const [submitting, setSubmitting] = useState(false)
++  const [error, setError] = useState('')
++
++  const load = useCallback(async () => {
++    const client = db()
++    const { data } = await client
++      .from('comments')
++      .select('id, body, is_anonymous, is_hidden, created_at, author:profiles!comments_author_id_fkey(nickname)')
++      .eq('post_id', postId)
++      .order('created_at')
++    const list = (data as Comment[] | null) ?? []
++    setComments(list)
++    // 내가 쓴 댓글 (익명 포함) — 실제 작성자 기록은 본인 것만 조회됨
++    if (list.length > 0) {
++      const { data: own } = await client
++        .from('content_authors')
++        .select('target_id')
++        .eq('target_type', 'comment')
++        .in(
++          'target_id',
++          list.map((c) => c.id),
++        )
++      setMine(new Set(((own as { target_id: string }[] | null) ?? []).map((r) => r.target_id)))
++    }
++  }, [postId])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    if (!body.trim()) return
++    setSubmitting(true)
++    setError('')
++    const { error: insertError } = await db()
++      .from('comments')
++      .insert({ post_id: postId, body: body.trim(), is_anonymous: anonymous })
++    setSubmitting(false)
++    if (insertError) {
++      setError(toKoreanError(insertError))
++      return
++    }
++    setBody('')
++    await load()
++  }
++
++  async function remove(id: string) {
++    if (!window.confirm('댓글을 삭제할까요?')) return
++    const { error: deleteError } = await db().from('comments').delete().eq('id', id)
++    if (deleteError) {
++      setError(toKoreanError(deleteError))
++      return
++    }
++    setComments((prev) => prev.filter((c) => c.id !== id))
++  }
++
++  return (
++    <div>
++      <h2 className="font-semibold">
++        댓글 <span className="text-slate-400">{comments.length}</span>
++      </h2>
++
++      <ul className="mt-3 space-y-4">
++        {comments.map((comment) => {
++          const name = comment.is_anonymous ? '익명' : (comment.author?.nickname ?? '탈퇴한 회원')
++          const isMine = mine.has(comment.id)
++          return (
++            <li key={comment.id} className="flex animate-rise gap-3">
++              <Avatar name={name} size="sm" muted={comment.is_anonymous} />
++              <div className="min-w-0 flex-1">
++                <div className="flex items-center gap-2 text-xs">
++                  <span className="font-semibold text-slate-700">
++                    {name}
++                    {isMine && <span className="ml-1 font-normal text-brand-600">(나)</span>}
++                  </span>
++                  <span className="text-slate-400">{timeAgo(comment.created_at)}</span>
++                  {comment.is_hidden && <span className="text-red-500">가려진 댓글</span>}
++                  <span className="ml-auto flex items-center gap-2">
++                    {!isMine && <ReportButton targetType="comment" targetId={comment.id} />}
++                    {(isMine || isAdmin) && (
++                      <button
++                        type="button"
++                        onClick={() => void remove(comment.id)}
++                        className="inline-flex items-center gap-1 text-slate-400 hover:text-red-500"
++                      >
++                        <Trash2 className="size-3.5" />
++                        삭제
++                      </button>
++                    )}
++                  </span>
++                </div>
++                <p className="mt-1 text-sm leading-relaxed whitespace-pre-wrap">{comment.body}</p>
++              </div>
++            </li>
++          )
++        })}
++      </ul>
++
++      <form onSubmit={submit} className="mt-5 rounded-xl border border-slate-200 bg-white p-3">
++        <textarea
++          value={body}
++          onChange={(e) => setBody(e.target.value)}
++          maxLength={1000}
++          rows={2}
++          placeholder="댓글을 남겨 보세요"
++          className="w-full resize-none text-base outline-none md:text-sm"
++        />
++        <div className="mt-2 flex items-center justify-between">
++          <label className="flex items-center gap-1.5 text-xs text-slate-600">
++            <input
++              type="checkbox"
++              checked={anonymous}
++              onChange={(e) => setAnonymous(e.target.checked)}
++              className="size-3.5 accent-brand-600"
++            />
++            익명
++          </label>
++          <Button type="submit" size="sm" disabled={submitting || !body.trim()}>
++            등록
++          </Button>
++        </div>
++      </form>
++      <div className="mt-2">
++        <ErrorText>{error}</ErrorText>
++      </div>
++    </div>
++  )
++}
+diff --git a/src/pages/community/CommunityPage.tsx b/src/pages/community/CommunityPage.tsx
+index 3ae99de..8ef11cc 100644
+--- a/src/pages/community/CommunityPage.tsx
++++ b/src/pages/community/CommunityPage.tsx
+@@ -1,7 +1,155 @@
+-import { PlaceholderPage } from '../../components/PlaceholderPage'
+-import { findNavItem } from '../../config/navigation'
++import { EyeOff, Heart, MessageCircle, NotebookText, PenLine, Search } from 'lucide-react'
++import { useEffect, useMemo, useState } from 'react'
++import { Link, useSearchParams } from 'react-router-dom'
++import { EmptyState, ErrorText, PageHeader, Spinner, Tabs, buttonClass } from '../../components/ui'
++import { toKoreanError } from '../../lib/errors'
++import { dDayLabel, timeAgo } from '../../lib/format'
++import { db } from '../../lib/supabase'
++import { CATEGORIES, CATEGORY_LABEL, postAuthorName, type PostCategory, type PostRow } from './shared'
++
++type ListRow = PostRow & { comments: { count: number }[]; post_likes: { count: number }[] }
+ 
+-// TODO: 이 파일을 기능 브랜치에서 실제 화면으로 교체
+ export default function CommunityPage() {
+-  return <PlaceholderPage item={findNavItem('/community')!} />
++  const [params, setParams] = useSearchParams()
++  const category = (params.get('category') as PostCategory | null) ?? 'all'
++  const [posts, setPosts] = useState<ListRow[]>([])
++  const [loading, setLoading] = useState(true)
++  const [error, setError] = useState('')
++  const [keyword, setKeyword] = useState('')
++
++  useEffect(() => {
++    let active = true
++    setLoading(true)
++    let query = db()
++      .from('posts')
++      .select(
++        'id, category, title, body, is_anonymous, is_hidden, author_id, created_at, updated_at, author:profiles!posts_author_id_fkey(name, nickname), recruitments(*), comments(count), post_likes(count)',
++      )
++      .order('created_at', { ascending: false })
++      .limit(100)
++    if (category !== 'all') query = query.eq('category', category)
++    void query.then(({ data, error: loadError }) => {
++      if (!active) return
++      if (loadError) setError(toKoreanError(loadError))
++      setPosts((data as ListRow[] | null) ?? [])
++      setLoading(false)
++    })
++    return () => {
++      active = false
++    }
++  }, [category])
++
++  const filtered = useMemo(() => {
++    const q = keyword.trim().toLowerCase()
++    if (!q) return posts
++    return posts.filter((p) => `${p.title} ${p.body}`.toLowerCase().includes(q))
++  }, [posts, keyword])
++
++  const currentCategory = CATEGORIES.find((c) => c.value === category)
++
++  return (
++    <section>
++      <PageHeader
++        title="정보방"
++        description={currentCategory?.description ?? '전공 및 학교생활 정보를 카테고리별로 공유해요'}
++        icon={NotebookText}
++        action={
++          <Link
++            to={`/community/new${category !== 'all' ? `?category=${category}` : ''}`}
++            className={buttonClass('primary')}
++          >
++            <PenLine className="size-4" />
++            글쓰기
++          </Link>
++        }
++      />
++
++      <div className="mt-6">
++        <Tabs
++          value={category}
++          onChange={(value) => setParams(value === 'all' ? {} : { category: value })}
++          items={[{ value: 'all' as const, label: '전체' }, ...CATEGORIES.map((c) => ({ value: c.value, label: c.label }))]}
++        />
++      </div>
++
++      <div className="relative mt-4">
++        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
++        <input
++          value={keyword}
++          onChange={(e) => setKeyword(e.target.value)}
++          placeholder="제목, 내용 검색"
++          className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pr-3 pl-9 text-base outline-none focus:border-brand-500 md:text-sm"
++        />
++      </div>
++
++      <div className="mt-4">
++        <ErrorText>{error}</ErrorText>
++      </div>
++
++      <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
++        {loading ? (
++          <Spinner />
++        ) : filtered.length === 0 ? (
++          <EmptyState
++            icon={NotebookText}
++            title={keyword ? '검색 결과가 없어요.' : '아직 글이 없어요. 첫 글을 남겨 보세요.'}
++            action={
++              !keyword && (
++                <Link to="/community/new" className={buttonClass('secondary', 'sm')}>
++                  글쓰기
++                </Link>
++              )
++            }
++          />
++        ) : (
++          <ul className="divide-y divide-slate-100">
++            {filtered.map((post, i) => {
++              const rec = post.recruitments
++              return (
++                <li key={post.id} className="animate-rise" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
++                  <Link to={`/community/${post.id}`} className="block px-4 py-4 transition-colors hover:bg-slate-50 md:px-5">
++                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
++                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">
++                        {CATEGORY_LABEL[post.category]}
++                      </span>
++                      {rec && (
++                        <span
++                          className={[
++                            'rounded-md px-1.5 py-0.5 font-semibold',
++                            rec.status === 'open' ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-400',
++                          ].join(' ')}
++                        >
++                          {rec.status === 'open' ? (rec.deadline ? `모집 중 ${dDayLabel(rec.deadline)}` : '모집 중') : '모집 마감'}
++                        </span>
++                      )}
++                      {post.is_hidden && (
++                        <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-red-600">
++                          <EyeOff className="size-3" />
++                          가려진 글
++                        </span>
++                      )}
++                    </div>
++                    <p className="mt-1.5 truncate font-semibold">{post.title}</p>
++                    <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{post.body}</p>
++                    <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
++                      <span>{postAuthorName(post)}</span>
++                      <span>{timeAgo(post.created_at)}</span>
++                      <span className="ml-auto inline-flex items-center gap-1">
++                        <Heart className="size-3.5" />
++                        {post.post_likes[0]?.count ?? 0}
++                      </span>
++                      <span className="inline-flex items-center gap-1">
++                        <MessageCircle className="size-3.5" />
++                        {post.comments[0]?.count ?? 0}
++                      </span>
++                    </div>
++                  </Link>
++                </li>
++              )
++            })}
++          </ul>
++        )}
++      </div>
++    </section>
++  )
+ }
+diff --git a/src/pages/community/PostDetailPage.tsx b/src/pages/community/PostDetailPage.tsx
+new file mode 100644
+index 0000000..f63d3af
+--- /dev/null
++++ b/src/pages/community/PostDetailPage.tsx
+@@ -0,0 +1,183 @@
++import { ArrowLeft, EyeOff, Heart, MessageSquare, Trash2 } from 'lucide-react'
++import { useCallback, useEffect, useState } from 'react'
++import { Link, useNavigate, useParams } from 'react-router-dom'
++import { ReportButton } from '../../components/ReportButton'
++import { Avatar, Button, Card, EmptyState, ErrorText, Spinner } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { timeAgo } from '../../lib/format'
++import { db } from '../../lib/supabase'
++import { Comments } from './Comments'
++import { RecruitPanel } from './RecruitPanel'
++import { CATEGORY_LABEL, postAuthorName, type PostRow } from './shared'
++
++export default function PostDetailPage() {
++  const { id = '' } = useParams()
++  const navigate = useNavigate()
++  const { profile, isAdmin } = useAuth()
++  const [post, setPost] = useState<PostRow | null>(null)
++  const [loading, setLoading] = useState(true)
++  const [isMine, setIsMine] = useState(false)
++  const [likeCount, setLikeCount] = useState(0)
++  const [liked, setLiked] = useState(false)
++  const [error, setError] = useState('')
++
++  const load = useCallback(async () => {
++    const client = db()
++    const [postRes, likeRes, mineRes] = await Promise.all([
++      client
++        .from('posts')
++        .select(
++          'id, category, title, body, is_anonymous, is_hidden, author_id, created_at, updated_at, author:profiles!posts_author_id_fkey(name, nickname), recruitments(*)',
++        )
++        .eq('id', id)
++        .maybeSingle(),
++      client.from('post_likes').select('user_id').eq('post_id', id),
++      client.from('content_authors').select('target_id').eq('target_type', 'post').eq('target_id', id),
++    ])
++    setPost((postRes.data as PostRow | null) ?? null)
++    const likes = (likeRes.data as { user_id: string }[] | null) ?? []
++    setLikeCount(likes.length)
++    setLiked(likes.some((l) => l.user_id === profile?.id))
++    setIsMine(((mineRes.data as unknown[] | null) ?? []).length > 0)
++    setLoading(false)
++  }, [id, profile?.id])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  async function toggleLike() {
++    const client = db()
++    // 화면 먼저 바꾸고 저장 (실패하면 되돌림)
++    setLiked(!liked)
++    setLikeCount((c) => c + (liked ? -1 : 1))
++    const { error: likeError } = liked
++      ? await client.from('post_likes').delete().eq('post_id', id).eq('user_id', profile?.id ?? '')
++      : await client.from('post_likes').insert({ post_id: id })
++    if (likeError) {
++      setLiked(liked)
++      setLikeCount((c) => c + (liked ? 1 : -1))
++    }
++  }
++
++  async function remove() {
++    if (!window.confirm('글을 삭제할까요? 댓글과 신청 내역도 함께 삭제돼요.')) return
++    const { error: deleteError } = await db().from('posts').delete().eq('id', id)
++    if (deleteError) {
++      setError(toKoreanError(deleteError))
++      return
++    }
++    navigate('/community', { replace: true })
++  }
++
++  async function toggleHidden() {
++    if (!post) return
++    const { error: rpcError } = await db().rpc('moderate_content', { p_type: 'post', p_id: id, p_hidden: !post.is_hidden })
++    if (rpcError) setError(toKoreanError(rpcError))
++    else await load()
++  }
++
++  async function startChat() {
++    if (!post?.author_id) return
++    const { data, error: rpcError } = await db().rpc('start_direct_chat', { p_user_id: post.author_id })
++    if (rpcError) setError(toKoreanError(rpcError))
++    else navigate(`/chat/${data as string}`)
++  }
++
++  if (loading) return <Spinner />
++  if (!post) {
++    return (
++      <EmptyState
++        title="글을 찾을 수 없어요. 삭제됐거나 가려진 글이에요."
++        action={
++          <Link to="/community" className="text-sm font-semibold text-brand-600">
++            정보방으로
++          </Link>
++        }
++      />
++    )
++  }
++
++  const authorName = postAuthorName(post)
++  const canChat = !post.is_anonymous && post.author_id && post.author_id !== profile?.id
++
++  return (
++    <section className="space-y-5">
++      <Link
++        to={`/community?category=${post.category}`}
++        className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900"
++      >
++        <ArrowLeft className="size-4" />
++        {CATEGORY_LABEL[post.category]}
++      </Link>
++
++      <Card className="p-5 md:p-6">
++        {post.is_hidden && (
++          <p className="mb-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
++            <EyeOff className="size-4" />
++            신고 또는 관리자 조치로 가려진 글이에요. 작성자와 관리자만 볼 수 있어요.
++          </p>
++        )}
++        <h1 className="text-xl leading-snug font-bold md:text-2xl">{post.title}</h1>
++        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
++          <Avatar name={authorName} size="sm" muted={post.is_anonymous} />
++          <span className="font-medium">
++            {authorName}
++            {isMine && <span className="ml-1 text-brand-600">(나)</span>}
++          </span>
++          <span className="text-slate-400">{timeAgo(post.created_at)}</span>
++          {canChat && (
++            <button
++              type="button"
++              onClick={() => void startChat()}
++              className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-200"
++            >
++              <MessageSquare className="size-3.5" />
++              1:1 대화
++            </button>
++          )}
++        </div>
++
++        <p className="mt-5 leading-relaxed whitespace-pre-wrap text-slate-800">{post.body}</p>
++
++        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
++          <button
++            type="button"
++            onClick={() => void toggleLike()}
++            className={[
++              'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition active:scale-90',
++              liked ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
++            ].join(' ')}
++          >
++            <Heart className={`size-4 transition-transform ${liked ? 'scale-110 fill-current' : ''}`} />
++            공감 {likeCount}
++          </button>
++          <span className="ml-auto flex items-center gap-3">
++            {!isMine && <ReportButton targetType="post" targetId={post.id} />}
++            {isAdmin && (
++              <button type="button" onClick={() => void toggleHidden()} className="text-xs text-slate-400 hover:text-slate-700">
++                {post.is_hidden ? '숨김 해제' : '숨김'}
++              </button>
++            )}
++            {(isMine || isAdmin) && (
++              <Button size="sm" variant="ghost" onClick={() => void remove()}>
++                <Trash2 className="size-3.5" />
++                삭제
++              </Button>
++            )}
++          </span>
++        </div>
++        <div className="mt-3">
++          <ErrorText>{error}</ErrorText>
++        </div>
++      </Card>
++
++      {post.recruitments && <RecruitPanel recruitment={post.recruitments} isOwner={isMine} onChange={() => void load()} />}
++
++      <Card className="p-5 md:p-6">
++        <Comments postId={post.id} />
++      </Card>
++    </section>
++  )
++}
+diff --git a/src/pages/community/PostWritePage.tsx b/src/pages/community/PostWritePage.tsx
+new file mode 100644
+index 0000000..774aa63
+--- /dev/null
++++ b/src/pages/community/PostWritePage.tsx
+@@ -0,0 +1,226 @@
++import { ArrowLeft } from 'lucide-react'
++import { useState, type FormEvent } from 'react'
++import { Link, useNavigate, useSearchParams } from 'react-router-dom'
++import { Button, Card, ErrorText, Field, inputClass } from '../../components/ui'
++import { toKoreanError } from '../../lib/errors'
++import { db } from '../../lib/supabase'
++import { CATEGORIES, type PostCategory } from './shared'
++
++export default function PostWritePage() {
++  const navigate = useNavigate()
++  const [params] = useSearchParams()
++  const initialCategory = (CATEGORIES.find((c) => c.value === params.get('category'))?.value ?? 'free') as PostCategory
++
++  const [category, setCategory] = useState<PostCategory>(initialCategory)
++  const [title, setTitle] = useState('')
++  const [body, setBody] = useState('')
++  const [anonymous, setAnonymous] = useState(false)
++  const [recruit, setRecruit] = useState({
++    projectName: '',
++    fields: '',
++    headcount: '2',
++    skills: '',
++    deadline: '',
++    method: '',
++    createRoom: true,
++  })
++  const [error, setError] = useState('')
++  const [submitting, setSubmitting] = useState(false)
++
++  const isRecruit = category === 'recruit'
++
++  async function handleSubmit(event: FormEvent) {
++    event.preventDefault()
++    if (!title.trim() || !body.trim()) {
++      setError('제목과 내용을 입력해 주세요.')
++      return
++    }
++    if (isRecruit && !recruit.projectName.trim()) {
++      setError('모집할 프로젝트 이름을 입력해 주세요.')
++      return
++    }
++    setError('')
++    setSubmitting(true)
++    const client = db()
++
++    const { data: post, error: postError } = await client
++      .from('posts')
++      .insert({ category, title: title.trim(), body: body.trim(), is_anonymous: isRecruit ? false : anonymous })
++      .select('id')
++      .single()
++    if (postError || !post) {
++      setSubmitting(false)
++      setError(toKoreanError(postError))
++      return
++    }
++
++    if (isRecruit) {
++      // 승인한 팀원이 자동으로 들어갈 팀룸을 함께 만듦
++      let teamRoomId: string | null = null
++      if (recruit.createRoom) {
++        const { data: room, error: roomError } = await client
++          .from('team_rooms')
++          .insert({ name: recruit.projectName.trim(), description: title.trim() })
++          .select('id')
++          .single()
++        if (roomError) {
++          await client.from('posts').delete().eq('id', post.id)
++          setSubmitting(false)
++          setError(toKoreanError(roomError))
++          return
++        }
++        teamRoomId = room.id
++      }
++
++      const { error: recruitError } = await client.from('recruitments').insert({
++        post_id: post.id,
++        project_name: recruit.projectName.trim(),
++        fields: recruit.fields.trim() || null,
++        headcount: Number(recruit.headcount) || null,
++        skills: recruit.skills.trim() || null,
++        deadline: recruit.deadline || null,
++        method: recruit.method.trim() || null,
++        team_room_id: teamRoomId,
++      })
++      if (recruitError) {
++        await client.from('posts').delete().eq('id', post.id)
++        if (teamRoomId) await client.from('team_rooms').delete().eq('id', teamRoomId)
++        setSubmitting(false)
++        setError(toKoreanError(recruitError))
++        return
++      }
++    }
++
++    navigate(`/community/${post.id}`, { replace: true })
++  }
++
++  return (
++    <section>
++      <Link to="/community" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900">
++        <ArrowLeft className="size-4" />
++        정보방
++      </Link>
++      <h1 className="mt-3 text-xl font-bold md:text-2xl">글쓰기</h1>
++
++      <form onSubmit={handleSubmit} className="mt-6 space-y-5">
++        <Card className="space-y-4 p-5">
++          <Field label="카테고리">
++            <select
++              className={inputClass}
++              value={category}
++              onChange={(e) => setCategory(e.target.value as PostCategory)}
++            >
++              {CATEGORIES.map((c) => (
++                <option key={c.value} value={c.value}>
++                  {c.label}
++                </option>
++              ))}
++            </select>
++          </Field>
++          <Field label="제목">
++            <input className={inputClass} maxLength={100} value={title} onChange={(e) => setTitle(e.target.value)} />
++          </Field>
++          <Field label="내용">
++            <textarea
++              className={`${inputClass} min-h-40 leading-relaxed`}
++              maxLength={5000}
++              value={body}
++              onChange={(e) => setBody(e.target.value)}
++            />
++          </Field>
++          {isRecruit ? (
++            <p className="text-xs text-slate-500">팀원 모집 글은 신청과 승인을 위해 실명(닉네임)으로만 올라가요.</p>
++          ) : (
++            <label className="flex items-center gap-2 text-sm">
++              <input
++                type="checkbox"
++                checked={anonymous}
++                onChange={(e) => setAnonymous(e.target.checked)}
++                className="size-4 accent-brand-600"
++              />
++              익명으로 올리기
++            </label>
++          )}
++        </Card>
++
++        {isRecruit && (
++          <Card className="animate-rise space-y-4 p-5">
++            <h2 className="font-semibold">모집 정보</h2>
++            <Field label="프로젝트·공모전 이름">
++              <input
++                className={inputClass}
++                maxLength={100}
++                value={recruit.projectName}
++                onChange={(e) => setRecruit({ ...recruit, projectName: e.target.value })}
++              />
++            </Field>
++            <div className="grid gap-4 sm:grid-cols-2">
++              <Field label="모집 분야" hint="예: 프론트엔드, UI 디자인">
++                <input
++                  className={inputClass}
++                  value={recruit.fields}
++                  onChange={(e) => setRecruit({ ...recruit, fields: e.target.value })}
++                />
++              </Field>
++              <Field label="모집 인원">
++                <input
++                  type="number"
++                  min={1}
++                  max={20}
++                  className={inputClass}
++                  value={recruit.headcount}
++                  onChange={(e) => setRecruit({ ...recruit, headcount: e.target.value })}
++                />
++              </Field>
++              <Field label="필요한 기술·역량">
++                <input
++                  className={inputClass}
++                  value={recruit.skills}
++                  onChange={(e) => setRecruit({ ...recruit, skills: e.target.value })}
++                />
++              </Field>
++              <Field label="모집 마감일">
++                <input
++                  type="date"
++                  className={inputClass}
++                  value={recruit.deadline}
++                  onChange={(e) => setRecruit({ ...recruit, deadline: e.target.value })}
++                />
++              </Field>
++            </div>
++            <Field label="진행 방식" hint="예: 주 2회 오프라인, 디스코드 회의">
++              <input
++                className={inputClass}
++                value={recruit.method}
++                onChange={(e) => setRecruit({ ...recruit, method: e.target.value })}
++              />
++            </Field>
++            <label className="flex items-start gap-2 text-sm">
++              <input
++                type="checkbox"
++                checked={recruit.createRoom}
++                onChange={(e) => setRecruit({ ...recruit, createRoom: e.target.checked })}
++                className="mt-0.5 size-4 accent-brand-600"
++              />
++              <span>
++                팀룸 함께 만들기
++                <span className="block text-xs text-slate-500">승인한 신청자가 이 팀룸에 자동으로 들어와요.</span>
++              </span>
++            </label>
++          </Card>
++        )}
++
++        <ErrorText>{error}</ErrorText>
++
++        <div className="flex justify-end gap-2">
++          <Button variant="secondary" onClick={() => navigate(-1)}>
++            취소
++          </Button>
++          <Button type="submit" disabled={submitting}>
++            {submitting ? '올리는 중…' : '올리기'}
++          </Button>
++        </div>
++      </form>
++    </section>
++  )
++}
+diff --git a/src/pages/community/RecruitPanel.tsx b/src/pages/community/RecruitPanel.tsx
+new file mode 100644
+index 0000000..29a3e3a
+--- /dev/null
++++ b/src/pages/community/RecruitPanel.tsx
+@@ -0,0 +1,254 @@
++import { Check, Users } from 'lucide-react'
++import { useCallback, useEffect, useState } from 'react'
++import { Link } from 'react-router-dom'
++import { Avatar, Button, Card, ErrorText, buttonClass } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { dDayLabel, formatDate, timeAgo } from '../../lib/format'
++import { db } from '../../lib/supabase'
++import type { Recruitment } from './shared'
++
++type Application = {
++  id: string
++  applicant_id: string
++  message: string | null
++  status: 'pending' | 'accepted' | 'rejected'
++  created_at: string
++  applicant: { name: string; nickname: string; grade: number | null } | null
++}
++
++const STATUS_LABEL = { pending: '대기 중', accepted: '승인됨', rejected: '거절됨' } as const
++
++/** 팀원 모집 정보 + 신청(신청자) / 신청자 관리(작성자) */
++export function RecruitPanel({
++  recruitment,
++  isOwner,
++  onChange,
++}: {
++  recruitment: Recruitment
++  isOwner: boolean
++  onChange: () => void
++}) {
++  const { profile } = useAuth()
++  const [applications, setApplications] = useState<Application[]>([])
++  const [message, setMessage] = useState('')
++  const [busy, setBusy] = useState(false)
++  const [error, setError] = useState('')
++
++  const load = useCallback(async () => {
++    // 작성자는 모든 신청을, 다른 학생은 자기 신청만 조회됨 (RLS)
++    const { data } = await db()
++      .from('applications')
++      .select(
++        'id, applicant_id, message, status, created_at, applicant:profiles!applications_applicant_id_fkey(name, nickname, grade)',
++      )
++      .eq('recruitment_id', recruitment.post_id)
++      .order('created_at')
++    setApplications((data as Application[] | null) ?? [])
++  }, [recruitment.post_id])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  const myApplication = applications.find((a) => a.applicant_id === profile?.id)
++  const acceptedCount = applications.filter((a) => a.status === 'accepted').length
++  const isOpen = recruitment.status === 'open'
++
++  async function run(task: () => PromiseLike<{ error: unknown }>, after?: () => void) {
++    setBusy(true)
++    setError('')
++    const { error: taskError } = await task()
++    setBusy(false)
++    if (taskError) {
++      setError(toKoreanError(taskError))
++      return
++    }
++    after?.()
++    await load()
++  }
++
++  const rows: [string, string | null][] = [
++    ['프로젝트', recruitment.project_name],
++    ['모집 분야', recruitment.fields],
++    ['모집 인원', recruitment.headcount ? `${recruitment.headcount}명` : null],
++    ['필요 역량', recruitment.skills],
++    ['진행 방식', recruitment.method],
++    ['마감일', recruitment.deadline ? `${formatDate(recruitment.deadline)} (${dDayLabel(recruitment.deadline)})` : null],
++  ]
++
++  return (
++    <Card className="p-5">
++      <div className="flex items-center justify-between gap-2">
++        <h2 className="font-semibold">모집 정보</h2>
++        <span
++          className={[
++            'rounded-full px-2.5 py-1 text-xs font-semibold',
++            isOpen ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500',
++          ].join(' ')}
++        >
++          {isOpen ? '모집 중' : '모집 마감'}
++        </span>
++      </div>
++
++      <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
++        {rows
++          .filter(([, v]) => v)
++          .map(([k, v]) => (
++            <div key={k} className="flex gap-3">
++              <dt className="w-16 shrink-0 text-slate-400">{k}</dt>
++              <dd className="text-slate-700">{v}</dd>
++            </div>
++          ))}
++      </dl>
++
++      {recruitment.team_room_id && (isOwner || myApplication?.status === 'accepted') && (
++        <Link to={`/team/${recruitment.team_room_id}`} className={`${buttonClass('secondary', 'sm')} mt-4`}>
++          <Users className="size-4" />
++          팀룸으로 가기
++        </Link>
++      )}
++
++      <div className="mt-5 border-t border-slate-100 pt-5">
++        {isOwner ? (
++          <>
++            <div className="flex items-center justify-between">
++              <h3 className="text-sm font-semibold">
++                신청자 {applications.length}명
++                <span className="ml-1 font-normal text-slate-400">(승인 {acceptedCount}명)</span>
++              </h3>
++              <Button
++                size="sm"
++                variant="secondary"
++                disabled={busy}
++                onClick={() =>
++                  void run(
++                    () =>
++                      db()
++                        .from('recruitments')
++                        .update({ status: isOpen ? 'closed' : 'open' })
++                        .eq('post_id', recruitment.post_id),
++                    onChange,
++                  )
++                }
++              >
++                {isOpen ? '모집 마감하기' : '다시 모집하기'}
++              </Button>
++            </div>
++            {applications.length === 0 ? (
++              <p className="mt-3 text-sm text-slate-400">아직 신청자가 없어요.</p>
++            ) : (
++              <ul className="mt-3 space-y-2">
++                {applications.map((app) => (
++                  <li key={app.id} className="flex animate-rise items-start gap-3 rounded-xl bg-slate-50 p-3">
++                    <Avatar name={app.applicant?.name ?? '?'} size="sm" />
++                    <div className="min-w-0 flex-1">
++                      <p className="text-sm font-semibold">
++                        {app.applicant?.name}
++                        <span className="ml-1 font-normal text-slate-400">
++                          @{app.applicant?.nickname} · {app.applicant?.grade ? `${app.applicant.grade}학년` : '졸업생'}
++                        </span>
++                      </p>
++                      {app.message && <p className="mt-0.5 text-sm text-slate-600">{app.message}</p>}
++                      <p className="mt-0.5 text-xs text-slate-400">{timeAgo(app.created_at)}</p>
++                    </div>
++                    {app.status === 'pending' ? (
++                      <div className="flex shrink-0 gap-1.5">
++                        <Button
++                          size="sm"
++                          variant="ghost"
++                          disabled={busy}
++                          onClick={() =>
++                            void run(() =>
++                              db().rpc('respond_application', { p_application_id: app.id, p_accept: false }),
++                            )
++                          }
++                        >
++                          거절
++                        </Button>
++                        <Button
++                          size="sm"
++                          disabled={busy}
++                          onClick={() =>
++                            void run(() => db().rpc('respond_application', { p_application_id: app.id, p_accept: true }))
++                          }
++                        >
++                          승인
++                        </Button>
++                      </div>
++                    ) : (
++                      <span
++                        className={[
++                          'shrink-0 animate-pop rounded-full px-2 py-0.5 text-xs font-semibold',
++                          app.status === 'accepted' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500',
++                        ].join(' ')}
++                      >
++                        {STATUS_LABEL[app.status]}
++                      </span>
++                    )}
++                  </li>
++                ))}
++              </ul>
++            )}
++          </>
++        ) : myApplication ? (
++          <div className="flex items-center justify-between gap-3">
++            <div>
++              <p className="text-sm font-semibold">
++                내 신청: <span className={myApplication.status === 'accepted' ? 'text-emerald-600' : ''}>
++                  {STATUS_LABEL[myApplication.status]}
++                </span>
++              </p>
++              {myApplication.status === 'accepted' && recruitment.team_room_id && (
++                <p className="text-xs text-slate-500">팀룸에 자동으로 참여했어요.</p>
++              )}
++            </div>
++            {myApplication.status === 'pending' && (
++              <Button
++                size="sm"
++                variant="secondary"
++                disabled={busy}
++                onClick={() => void run(() => db().from('applications').delete().eq('id', myApplication.id))}
++              >
++                신청 취소
++              </Button>
++            )}
++          </div>
++        ) : isOpen ? (
++          <div>
++            <textarea
++              value={message}
++              onChange={(e) => setMessage(e.target.value)}
++              maxLength={500}
++              rows={2}
++              placeholder="간단한 소개 (할 수 있는 것, 참여하고 싶은 이유)"
++              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base outline-none focus:border-brand-500 md:text-sm"
++            />
++            <Button
++              className="mt-2 w-full"
++              disabled={busy}
++              onClick={() =>
++                void run(
++                  () =>
++                    db()
++                      .from('applications')
++                      .insert({ recruitment_id: recruitment.post_id, message: message.trim() || null }),
++                  () => setMessage(''),
++                )
++              }
++            >
++              <Check className="size-4" />
++              참여 신청
++            </Button>
++          </div>
++        ) : (
++          <p className="text-sm text-slate-400">모집이 마감됐어요.</p>
++        )}
++      </div>
++
++      <div className="mt-3">
++        <ErrorText>{error}</ErrorText>
++      </div>
++    </Card>
++  )
++}
+diff --git a/src/pages/community/shared.ts b/src/pages/community/shared.ts
+new file mode 100644
+index 0000000..451e512
+--- /dev/null
++++ b/src/pages/community/shared.ts
+@@ -0,0 +1,43 @@
++export type PostCategory = 'notice' | 'equipment' | 'contest' | 'recruit' | 'free'
++
++export const CATEGORIES: { value: PostCategory; label: string; description: string }[] = [
++  { value: 'free', label: '자유', description: '질문, 정보 공유, 학교생활 이야기' },
++  { value: 'recruit', label: '팀원 모집', description: '공모전·프로젝트·스터디 팀원 모집' },
++  { value: 'contest', label: '공모전·대외활동', description: '공모전, 캠프, 해커톤, 교육 프로그램' },
++  { value: 'equipment', label: '장비·실습실', description: '실습실 이용, 장비 사용법, 기자재 질문' },
++  { value: 'notice', label: '학과 소식', description: '학생회·학과 행사 소식 공유' },
++]
++
++export const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.value, c.label])) as Record<PostCategory, string>
++
++export type Recruitment = {
++  post_id: string
++  project_name: string
++  fields: string | null
++  headcount: number | null
++  skills: string | null
++  deadline: string | null
++  method: string | null
++  status: 'open' | 'closed'
++  team_room_id: string | null
++}
++
++export type PostRow = {
++  id: string
++  category: PostCategory
++  title: string
++  body: string
++  is_anonymous: boolean
++  is_hidden: boolean
++  author_id: string | null
++  created_at: string
++  updated_at: string
++  author: { name: string; nickname: string } | null
++  recruitments: Recruitment | null
++}
++
++/** 정보방에서는 닉네임, 익명 글은 '익명' */
++export function postAuthorName(post: { is_anonymous: boolean; author: { nickname: string } | null }) {
++  if (post.is_anonymous) return '익명'
++  return post.author?.nickname ?? '탈퇴한 회원'
++}
+diff --git a/src/pages/home/HomePage.tsx b/src/pages/home/HomePage.tsx
+index 6957c6c..8eee433 100644
+--- a/src/pages/home/HomePage.tsx
++++ b/src/pages/home/HomePage.tsx
+@@ -1,7 +1,269 @@
+-import { PlaceholderPage } from '../../components/PlaceholderPage'
+-import { findNavItem } from '../../config/navigation'
++import { CalendarDays, ChevronRight, Megaphone, NotebookText, Pin, UserPlus, Users, type LucideIcon } from 'lucide-react'
++import { useEffect, useState, type ReactNode } from 'react'
++import { Link } from 'react-router-dom'
++import { useAuth } from '../../lib/auth'
++import { dDayLabel, formatDate, timeAgo, toDateKey } from '../../lib/format'
++import { SCHEDULE_CATEGORY, type Announcement, type Schedule } from '../../lib/schedule'
++import { db } from '../../lib/supabase'
++import { CATEGORY_LABEL, postAuthorName, type PostRow } from '../community/shared'
+ 
+-// TODO: 이 파일을 기능 브랜치에서 실제 화면으로 교체
++type RecruitRow = Pick<PostRow, 'id' | 'title' | 'created_at'> & {
++  recruitments: { project_name: string; fields: string | null; deadline: string | null; headcount: number | null } | null
++}
++type MyTeam = { team_rooms: { id: string; name: string; description: string | null } | null }
++
++type Data = {
++  schedules: Schedule[]
++  announcements: Announcement[]
++  posts: PostRow[]
++  recruits: RecruitRow[]
++  teams: MyTeam[]
++}
++
++/** 홈: 자주 확인하는 정보를 한 화면에 */
+ export default function HomePage() {
+-  return <PlaceholderPage item={findNavItem('/')!} />
++  const { profile, isAdmin, displayName } = useAuth()
++  const [data, setData] = useState<Data | null>(null)
++
++  useEffect(() => {
++    if (!profile) return
++    const client = db()
++    const today = toDateKey(new Date())
++    void Promise.all([
++      client
++        .from('schedules')
++        .select('id, title, description, category, starts_on, ends_on, announcement_id')
++        .or(`ends_on.gte.${today},and(ends_on.is.null,starts_on.gte.${today})`)
++        .order('starts_on')
++        .limit(4),
++      client
++        .from('announcements')
++        .select('id, title, body, is_pinned, created_at, updated_at')
++        .order('is_pinned', { ascending: false })
++        .order('created_at', { ascending: false })
++        .limit(4),
++      client
++        .from('posts')
++        .select('id, category, title, body, is_anonymous, is_hidden, author_id, created_at, updated_at, author:profiles!posts_author_id_fkey(name, nickname), recruitments(*)')
++        .neq('category', 'recruit')
++        .eq('is_hidden', false)
++        .order('created_at', { ascending: false })
++        .limit(5),
++      client
++        .from('posts')
++        .select('id, title, created_at, recruitments!inner(project_name, fields, deadline, headcount, status)')
++        .eq('category', 'recruit')
++        .eq('is_hidden', false)
++        .eq('recruitments.status', 'open')
++        .order('created_at', { ascending: false })
++        .limit(4),
++      client
++        .from('team_members')
++        .select('team_rooms(id, name, description)')
++        .eq('user_id', profile.id)
++        .order('joined_at', { ascending: false })
++        .limit(4),
++    ]).then(([s, a, p, r, t]) => {
++      setData({
++        schedules: (s.data as Schedule[] | null) ?? [],
++        announcements: (a.data as Announcement[] | null) ?? [],
++        posts: (p.data as PostRow[] | null) ?? [],
++        recruits: (r.data as RecruitRow[] | null) ?? [],
++        teams: ((t.data as MyTeam[] | null) ?? []).filter((x) => x.team_rooms),
++      })
++    })
++  }, [profile])
++
++  const today = new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })
++
++  return (
++    <section>
++      <div className="animate-rise">
++        <p className="text-sm text-slate-500">{today}</p>
++        <h1 className="mt-1 text-2xl font-bold md:text-3xl">
++          {isAdmin ? '관리자님, 안녕하세요' : `${displayName}님, 안녕하세요`}
++        </h1>
++      </div>
++
++      <div className="mt-6 grid gap-4 md:grid-cols-2">
++        <Widget title="다가오는 일정" icon={CalendarDays} to="/notice?tab=calendar" delay={60}>
++          {!data ? (
++            <Skeleton />
++          ) : data.schedules.length === 0 ? (
++            <Empty>예정된 일정이 없어요.</Empty>
++          ) : (
++            <ul className="space-y-2">
++              {data.schedules.map((s) => (
++                <li key={s.id} className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
++                  <span className={`size-2 shrink-0 rounded-full ${SCHEDULE_CATEGORY[s.category].dot}`} />
++                  <span className="min-w-0 flex-1">
++                    <span className="block truncate text-sm font-medium">{s.title}</span>
++                    <span className="text-xs text-slate-500">{formatDate(s.starts_on)}</span>
++                  </span>
++                  <span
++                    className={[
++                      'shrink-0 rounded-md px-2 py-0.5 text-xs font-bold',
++                      s.starts_on <= toDateKey(new Date()) ? 'bg-brand-600 text-white' : 'bg-white text-slate-600',
++                    ].join(' ')}
++                  >
++                    {dDayLabel(s.starts_on) === '마감' ? '진행 중' : dDayLabel(s.starts_on)}
++                  </span>
++                </li>
++              ))}
++            </ul>
++          )}
++        </Widget>
++
++        <Widget title="학과 공지" icon={Megaphone} to="/notice" delay={120}>
++          {!data ? (
++            <Skeleton />
++          ) : data.announcements.length === 0 ? (
++            <Empty>등록된 공지가 없어요.</Empty>
++          ) : (
++            <ul className="divide-y divide-slate-100">
++              {data.announcements.map((a) => (
++                <li key={a.id}>
++                  <Link to={`/notice?id=${a.id}`} className="flex items-center gap-2 py-2.5 hover:text-brand-700">
++                    {a.is_pinned && <Pin className="size-3.5 shrink-0 fill-current text-brand-600" />}
++                    <span className="min-w-0 flex-1 truncate text-sm">{a.title}</span>
++                    <span className="shrink-0 text-xs text-slate-400">{formatDate(a.created_at)}</span>
++                  </Link>
++                </li>
++              ))}
++            </ul>
++          )}
++        </Widget>
++
++        <Widget title="모집 중인 팀" icon={UserPlus} to="/community?category=recruit" delay={180}>
++          {!data ? (
++            <Skeleton />
++          ) : data.recruits.length === 0 ? (
++            <Empty>
++              모집 중인 팀이 없어요.{' '}
++              <Link to="/community/new?category=recruit" className="font-semibold text-brand-600">
++                팀원 모집하기
++              </Link>
++            </Empty>
++          ) : (
++            <ul className="grid gap-2 sm:grid-cols-2">
++              {data.recruits.map((r) => (
++                <li key={r.id}>
++                  <Link
++                    to={`/community/${r.id}`}
++                    className="block h-full rounded-xl border border-slate-200 p-3 transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-sm"
++                  >
++                    <span className="text-xs font-semibold text-brand-700">
++                      {r.recruitments?.deadline ? dDayLabel(r.recruitments.deadline) : '모집 중'}
++                      {r.recruitments?.headcount ? ` · ${r.recruitments.headcount}명` : ''}
++                    </span>
++                    <p className="mt-1 line-clamp-2 text-sm font-semibold">{r.recruitments?.project_name ?? r.title}</p>
++                    {r.recruitments?.fields && <p className="mt-0.5 truncate text-xs text-slate-500">{r.recruitments.fields}</p>}
++                  </Link>
++                </li>
++              ))}
++            </ul>
++          )}
++        </Widget>
++
++        <Widget title="내 팀룸" icon={Users} to="/team" delay={240}>
++          {!data ? (
++            <Skeleton />
++          ) : data.teams.length === 0 ? (
++            <Empty>참여 중인 팀룸이 없어요.</Empty>
++          ) : (
++            <ul className="space-y-2">
++              {data.teams.map(({ team_rooms: t }) =>
++                t ? (
++                  <li key={t.id}>
++                    <Link to={`/team/${t.id}`} className="flex items-center gap-3 rounded-xl px-1 py-1.5 hover:bg-slate-50">
++                      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-brand-600 text-sm font-bold text-white">
++                        {t.name.slice(0, 1)}
++                      </span>
++                      <span className="min-w-0 flex-1">
++                        <span className="block truncate text-sm font-semibold">{t.name}</span>
++                        <span className="block truncate text-xs text-slate-500">{t.description ?? ''}</span>
++                      </span>
++                      <ChevronRight className="size-4 text-slate-300" />
++                    </Link>
++                  </li>
++                ) : null,
++              )}
++            </ul>
++          )}
++        </Widget>
++
++        <Widget title="정보방 최근 글" icon={NotebookText} to="/community" delay={300} wide>
++          {!data ? (
++            <Skeleton />
++          ) : data.posts.length === 0 ? (
++            <Empty>아직 글이 없어요.</Empty>
++          ) : (
++            <ul className="divide-y divide-slate-100">
++              {data.posts.map((p) => (
++                <li key={p.id}>
++                  <Link to={`/community/${p.id}`} className="flex items-center gap-3 py-2.5 hover:text-brand-700">
++                    <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">
++                      {CATEGORY_LABEL[p.category]}
++                    </span>
++                    <span className="min-w-0 flex-1 truncate text-sm">{p.title}</span>
++                    <span className="hidden shrink-0 text-xs text-slate-400 sm:inline">{postAuthorName(p)}</span>
++                    <span className="shrink-0 text-xs text-slate-400">{timeAgo(p.created_at)}</span>
++                  </Link>
++                </li>
++              ))}
++            </ul>
++          )}
++        </Widget>
++      </div>
++    </section>
++  )
++}
++
++function Widget({
++  title,
++  icon: Icon,
++  to,
++  delay,
++  wide = false,
++  children,
++}: {
++  title: string
++  icon: LucideIcon
++  to: string
++  delay: number
++  wide?: boolean
++  children: ReactNode
++}) {
++  return (
++    <div
++      className={`animate-rise rounded-2xl border border-slate-200 bg-white p-5 ${wide ? 'md:col-span-2' : ''}`}
++      style={{ animationDelay: `${delay}ms` }}
++    >
++      <div className="mb-3 flex items-center justify-between">
++        <h2 className="flex items-center gap-2 font-semibold">
++          <Icon className="size-4 text-brand-600" />
++          {title}
++        </h2>
++        <Link to={to} className="inline-flex items-center text-xs text-slate-500 hover:text-slate-900">
++          전체 보기
++          <ChevronRight className="size-3.5" />
++        </Link>
++      </div>
++      {children}
++    </div>
++  )
++}
++
++function Skeleton() {
++  return (
++    <div className="space-y-2">
++      {[0, 1, 2].map((i) => (
++        <div key={i} className="h-10 animate-pulse rounded-xl bg-slate-100" />
++      ))}
++    </div>
++  )
++}
++
++function Empty({ children }: { children: ReactNode }) {
++  return <p className="py-4 text-center text-sm text-slate-400">{children}</p>
+ }
+diff --git a/src/pages/notice/NoticePage.tsx b/src/pages/notice/NoticePage.tsx
+index 72395aa..71738d6 100644
+--- a/src/pages/notice/NoticePage.tsx
++++ b/src/pages/notice/NoticePage.tsx
+@@ -1,7 +1,300 @@
+-import { PlaceholderPage } from '../../components/PlaceholderPage'
+-import { findNavItem } from '../../config/navigation'
++import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Megaphone, Pin } from 'lucide-react'
++import { useEffect, useMemo, useState } from 'react'
++import { useSearchParams } from 'react-router-dom'
++import { Card, EmptyState, PageHeader, Spinner, Tabs } from '../../components/ui'
++import { dDayLabel, formatDate, toDateKey } from '../../lib/format'
++import { SCHEDULE_CATEGORY, isOnDate, type Announcement, type Schedule } from '../../lib/schedule'
++import { db } from '../../lib/supabase'
++
++const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+ 
+-// TODO: 이 파일을 기능 브랜치에서 실제 화면으로 교체
+ export default function NoticePage() {
+-  return <PlaceholderPage item={findNavItem('/notice')!} />
++  const [params, setParams] = useSearchParams()
++  const tab = params.get('tab') === 'calendar' ? 'calendar' : 'notice'
++  const openId = params.get('id')
++  const [announcements, setAnnouncements] = useState<Announcement[]>([])
++  const [schedules, setSchedules] = useState<Schedule[]>([])
++  const [loading, setLoading] = useState(true)
++
++  useEffect(() => {
++    const client = db()
++    void Promise.all([
++      client
++        .from('announcements')
++        .select('id, title, body, is_pinned, created_at, updated_at')
++        .order('is_pinned', { ascending: false })
++        .order('created_at', { ascending: false }),
++      client
++        .from('schedules')
++        .select('id, title, description, category, starts_on, ends_on, announcement_id')
++        .order('starts_on'),
++    ]).then(([a, s]) => {
++      setAnnouncements((a.data as Announcement[] | null) ?? [])
++      setSchedules((s.data as Schedule[] | null) ?? [])
++      setLoading(false)
++    })
++  }, [])
++
++  const showAnnouncement = (id: string) => setParams({ id })
++
++  return (
++    <section>
++      <PageHeader title="학과 일정" description="학과 공지사항과 학사 일정" icon={CalendarDays} />
++      <div className="mt-6">
++        <Tabs
++          value={tab}
++          onChange={(value) => setParams(value === 'calendar' ? { tab: 'calendar' } : {})}
++          items={[
++            { value: 'notice', label: '공지사항' },
++            { value: 'calendar', label: '캘린더' },
++          ]}
++        />
++      </div>
++      <div className="mt-4">
++        {loading ? (
++          <Spinner />
++        ) : tab === 'notice' ? (
++          <AnnouncementList
++            items={announcements}
++            openId={openId}
++            onToggle={(id) => setParams(id === openId ? {} : { id })}
++            schedules={schedules}
++          />
++        ) : (
++          <Calendar schedules={schedules} onOpenAnnouncement={showAnnouncement} />
++        )}
++      </div>
++    </section>
++  )
++}
++
++function AnnouncementList({
++  items,
++  openId,
++  onToggle,
++  schedules,
++}: {
++  items: Announcement[]
++  openId: string | null
++  onToggle: (id: string) => void
++  schedules: Schedule[]
++}) {
++  if (items.length === 0) {
++    return (
++      <Card>
++        <EmptyState icon={Megaphone} title="등록된 공지가 없어요." />
++      </Card>
++    )
++  }
++  return (
++    <Card className="overflow-hidden">
++      <ul className="divide-y divide-slate-100">
++        {items.map((item, i) => {
++          const open = item.id === openId
++          const linked = schedules.filter((s) => s.announcement_id === item.id)
++          return (
++            <li key={item.id} className="animate-rise" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
++              <button
++                type="button"
++                onClick={() => onToggle(item.id)}
++                aria-expanded={open}
++                className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-slate-50 md:px-5"
++              >
++                {item.is_pinned ? (
++                  <Pin className="size-4 shrink-0 fill-current text-brand-600" />
++                ) : (
++                  <Megaphone className="size-4 shrink-0 text-slate-300" />
++                )}
++                <span className={`min-w-0 flex-1 truncate ${item.is_pinned ? 'font-semibold' : 'font-medium'}`}>
++                  {item.title}
++                </span>
++                <span className="shrink-0 text-xs text-slate-400">{formatDate(item.created_at)}</span>
++                <ChevronDown className={`size-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
++              </button>
++              <div
++                className={`grid transition-[grid-template-rows] duration-300 ${open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
++              >
++                <div className="overflow-hidden">
++                  <div className="px-4 pb-5 md:px-5 md:pl-12">
++                    <p className="leading-relaxed whitespace-pre-wrap text-slate-700">{item.body}</p>
++                    {linked.length > 0 && (
++                      <div className="mt-4 flex flex-wrap gap-2">
++                        {linked.map((s) => (
++                          <span
++                            key={s.id}
++                            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium ${SCHEDULE_CATEGORY[s.category].chip}`}
++                          >
++                            <CalendarDays className="size-3.5" />
++                            {s.title} · {formatDate(s.starts_on)} ({dDayLabel(s.starts_on)})
++                          </span>
++                        ))}
++                      </div>
++                    )}
++                  </div>
++                </div>
++              </div>
++            </li>
++          )
++        })}
++      </ul>
++    </Card>
++  )
++}
++
++function Calendar({ schedules, onOpenAnnouncement }: { schedules: Schedule[]; onOpenAnnouncement: (id: string) => void }) {
++  const todayKey = toDateKey(new Date())
++  const [month, setMonth] = useState(() => {
++    const d = new Date()
++    return new Date(d.getFullYear(), d.getMonth(), 1)
++  })
++  const [selected, setSelected] = useState(todayKey)
++
++  const days = useMemo(() => {
++    const first = new Date(month.getFullYear(), month.getMonth(), 1)
++    const start = new Date(first)
++    start.setDate(1 - first.getDay())
++    return Array.from({ length: 42 }, (_, i) => {
++      const d = new Date(start)
++      d.setDate(start.getDate() + i)
++      return d
++    })
++  }, [month])
++
++  const move = (diff: number) => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + diff, 1))
++  const selectedItems = schedules.filter((s) => isOnDate(s, selected))
++  const upcoming = schedules.filter((s) => (s.ends_on ?? s.starts_on) >= todayKey).slice(0, 5)
++
++  return (
++    <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
++      <Card className="p-4 md:p-5">
++        <div className="flex items-center justify-between">
++          <button type="button" aria-label="이전 달" onClick={() => move(-1)} className="rounded-lg p-1.5 hover:bg-slate-100">
++            <ChevronLeft className="size-5" />
++          </button>
++          <p className="font-bold">
++            {month.getFullYear()}년 {month.getMonth() + 1}월
++          </p>
++          <button type="button" aria-label="다음 달" onClick={() => move(1)} className="rounded-lg p-1.5 hover:bg-slate-100">
++            <ChevronRight className="size-5" />
++          </button>
++        </div>
++
++        <div className="mt-3 grid grid-cols-7 text-center text-xs font-medium text-slate-400">
++          {WEEKDAYS.map((w, i) => (
++            <span key={w} className={i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : ''}>
++              {w}
++            </span>
++          ))}
++        </div>
++        <div key={month.toISOString()} className="mt-1 grid animate-page grid-cols-7 gap-0.5">
++          {days.map((d) => {
++            const key = toDateKey(d)
++            const inMonth = d.getMonth() === month.getMonth()
++            const items = schedules.filter((s) => isOnDate(s, key))
++            const isToday = key === todayKey
++            const isSelected = key === selected
++            return (
++              <button
++                key={key}
++                type="button"
++                onClick={() => setSelected(key)}
++                className={[
++                  'flex aspect-square flex-col items-center rounded-xl pt-1.5 text-sm transition md:aspect-auto md:h-16',
++                  isSelected ? 'bg-brand-600 text-white' : 'hover:bg-slate-100',
++                  inMonth ? '' : 'opacity-30',
++                ].join(' ')}
++              >
++                <span
++                  className={[
++                    'grid size-6 place-items-center rounded-full text-[13px]',
++                    isToday && !isSelected ? 'bg-brand-100 font-bold text-brand-700' : '',
++                  ].join(' ')}
++                >
++                  {d.getDate()}
++                </span>
++                <span className="mt-1 flex gap-0.5">
++                  {items.slice(0, 3).map((s) => (
++                    <span
++                      key={s.id}
++                      className={`size-1.5 rounded-full ${isSelected ? 'bg-white' : SCHEDULE_CATEGORY[s.category].dot}`}
++                    />
++                  ))}
++                </span>
++              </button>
++            )
++          })}
++        </div>
++        <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-500">
++          {Object.values(SCHEDULE_CATEGORY).map((c) => (
++            <span key={c.label} className="inline-flex items-center gap-1">
++              <span className={`size-2 rounded-full ${c.dot}`} />
++              {c.label}
++            </span>
++          ))}
++        </div>
++      </Card>
++
++      <div className="space-y-4">
++        <Card className="p-4 md:p-5">
++          <p className="font-semibold">{formatDate(selected)}</p>
++          {selectedItems.length === 0 ? (
++            <p className="mt-2 text-sm text-slate-400">일정이 없어요.</p>
++          ) : (
++            <ul key={selected} className="mt-3 space-y-2">
++              {selectedItems.map((s) => (
++                <ScheduleItem key={s.id} schedule={s} onOpenAnnouncement={onOpenAnnouncement} />
++              ))}
++            </ul>
++          )}
++        </Card>
++        <Card className="p-4 md:p-5">
++          <p className="font-semibold">다가오는 일정</p>
++          {upcoming.length === 0 ? (
++            <p className="mt-2 text-sm text-slate-400">예정된 일정이 없어요.</p>
++          ) : (
++            <ul className="mt-3 space-y-2">
++              {upcoming.map((s) => (
++                <ScheduleItem key={s.id} schedule={s} onOpenAnnouncement={onOpenAnnouncement} showDate />
++              ))}
++            </ul>
++          )}
++        </Card>
++      </div>
++    </div>
++  )
++}
++
++function ScheduleItem({
++  schedule: s,
++  onOpenAnnouncement,
++  showDate = false,
++}: {
++  schedule: Schedule
++  onOpenAnnouncement: (id: string) => void
++  showDate?: boolean
++}) {
++  const cat = SCHEDULE_CATEGORY[s.category]
++  return (
++    <li className="flex animate-rise gap-3 rounded-xl bg-slate-50 p-3">
++      <span className={`mt-1.5 size-2 shrink-0 rounded-full ${cat.dot}`} />
++      <div className="min-w-0 flex-1">
++        <p className="text-sm font-semibold">{s.title}</p>
++        <p className="text-xs text-slate-500">
++          {cat.label}
++          {showDate && ` · ${formatDate(s.starts_on)}${s.ends_on && s.ends_on !== s.starts_on ? ` ~ ${formatDate(s.ends_on)}` : ''}`}
++        </p>
++        {s.description && <p className="mt-1 text-xs text-slate-600">{s.description}</p>}
++        {s.announcement_id && (
++          <button
++            type="button"
++            onClick={() => onOpenAnnouncement(s.announcement_id!)}
++            className="mt-1 text-xs font-semibold text-brand-600"
++          >
++            관련 공지 보기
++          </button>
++        )}
++      </div>
++      <span className="shrink-0 text-xs font-semibold text-slate-500">{dDayLabel(s.starts_on)}</span>
++    </li>
++  )
+ }
+diff --git a/src/pages/team/TeamRoomDetailPage.tsx b/src/pages/team/TeamRoomDetailPage.tsx
+new file mode 100644
+index 0000000..40a87cf
+--- /dev/null
++++ b/src/pages/team/TeamRoomDetailPage.tsx
+@@ -0,0 +1,481 @@
++import { ArrowLeft, CalendarDays, Check, Copy, ExternalLink, Link2, MessageSquare, Plus, Trash2, Users } from 'lucide-react'
++import { useCallback, useEffect, useState, type FormEvent } from 'react'
++import { Link, useNavigate, useParams } from 'react-router-dom'
++import { ChatRoom } from '../../components/chat/ChatRoom'
++import { Avatar, Button, Card, EmptyState, ErrorText, Field, Spinner, Tabs, inputClass } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { formatDateTime } from '../../lib/format'
++import { db } from '../../lib/supabase'
++
++type Member = {
++  user_id: string
++  role: 'owner' | 'member'
++  joined_at: string
++  profiles: { name: string; nickname: string; grade: number | null } | null
++}
++
++type TeamRoom = {
++  id: string
++  name: string
++  description: string | null
++  invite_code: string
++  owner_id: string | null
++  team_members: Member[]
++}
++
++type Meeting = { id: string; title: string; starts_at: string; place: string | null; memo: string | null; created_by: string | null }
++type TeamLink = { id: string; title: string; url: string; created_by: string | null; created_at: string }
++
++type Tab = 'chat' | 'meetings' | 'links' | 'members'
++
++export default function TeamRoomDetailPage() {
++  const { id = '' } = useParams()
++  const { profile } = useAuth()
++  const [room, setRoom] = useState<TeamRoom | null>(null)
++  const [chatId, setChatId] = useState<string | null>(null)
++  const [loading, setLoading] = useState(true)
++  const [tab, setTab] = useState<Tab>('chat')
++  const [copied, setCopied] = useState(false)
++
++  const load = useCallback(async () => {
++    const client = db()
++    const [roomRes, chatRes] = await Promise.all([
++      client
++        .from('team_rooms')
++        .select('id, name, description, invite_code, owner_id, team_members(user_id, role, joined_at, profiles(name, nickname, grade))')
++        .eq('id', id)
++        .maybeSingle(),
++      client.from('chat_rooms').select('id').eq('team_room_id', id).maybeSingle(),
++    ])
++    setRoom((roomRes.data as TeamRoom | null) ?? null)
++    setChatId((chatRes.data as { id: string } | null)?.id ?? null)
++    setLoading(false)
++  }, [id])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  async function copyCode() {
++    if (!room) return
++    try {
++      await navigator.clipboard.writeText(room.invite_code)
++      setCopied(true)
++      setTimeout(() => setCopied(false), 1500)
++    } catch {
++      window.prompt('방 키를 복사하세요', room.invite_code)
++    }
++  }
++
++  if (loading) return <Spinner />
++  if (!room) {
++    return (
++      <EmptyState
++        icon={Users}
++        title="팀룸을 찾을 수 없어요. 팀원만 볼 수 있어요."
++        action={
++          <Link to="/team" className="text-sm font-semibold text-brand-600">
++            팀룸 목록으로
++          </Link>
++        }
++      />
++    )
++  }
++
++  const isOwner = room.owner_id === profile?.id
++
++  return (
++    <section>
++      <Link to="/team" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900">
++        <ArrowLeft className="size-4" />
++        팀룸
++      </Link>
++
++      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
++        <div className="min-w-0">
++          <h1 className="text-xl font-bold md:text-2xl">{room.name}</h1>
++          {room.description && <p className="mt-1 text-sm text-slate-500">{room.description}</p>}
++        </div>
++        <button
++          type="button"
++          onClick={() => void copyCode()}
++          className="group inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-brand-700 transition hover:bg-brand-100 active:scale-95"
++          title="방 키 복사"
++        >
++          <span className="text-xs">방 키</span>
++          <span className="font-bold tracking-wider">{room.invite_code}</span>
++          {copied ? <Check className="size-4 animate-pop text-signal" /> : <Copy className="size-4" />}
++        </button>
++      </div>
++
++      <div className="mt-5">
++        <Tabs
++          value={tab}
++          onChange={setTab}
++          items={[
++            { value: 'chat', label: '채팅' },
++            { value: 'meetings', label: '회의 일정' },
++            { value: 'links', label: '자료' },
++            { value: 'members', label: `팀원 ${room.team_members.length}` },
++          ]}
++        />
++      </div>
++
++      <div className="mt-4">
++        {tab === 'chat' &&
++          (chatId ? (
++            <ChatRoom roomId={chatId} className="h-[calc(100dvh-20rem)] min-h-80 md:h-[calc(100dvh-16rem)]" />
++          ) : (
++            <Card>
++              <EmptyState title="팀 채팅방을 찾을 수 없어요." />
++            </Card>
++          ))}
++        {tab === 'meetings' && <Meetings roomId={room.id} isOwner={isOwner} />}
++        {tab === 'links' && <Links roomId={room.id} isOwner={isOwner} />}
++        {tab === 'members' && <Members room={room} isOwner={isOwner} onChange={() => void load()} />}
++      </div>
++    </section>
++  )
++}
++
++function Meetings({ roomId, isOwner }: { roomId: string; isOwner: boolean }) {
++  const { profile } = useAuth()
++  const [items, setItems] = useState<Meeting[]>([])
++  const [form, setForm] = useState({ title: '', startsAt: '', place: '', memo: '' })
++  const [adding, setAdding] = useState(false)
++  const [error, setError] = useState('')
++
++  const load = useCallback(async () => {
++    const { data } = await db()
++      .from('team_meetings')
++      .select('id, title, starts_at, place, memo, created_by')
++      .eq('room_id', roomId)
++      .order('starts_at')
++    setItems((data as Meeting[] | null) ?? [])
++  }, [roomId])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    if (!form.title.trim() || !form.startsAt) return
++    const { error: insertError } = await db()
++      .from('team_meetings')
++      .insert({
++        room_id: roomId,
++        title: form.title.trim(),
++        starts_at: new Date(form.startsAt).toISOString(),
++        place: form.place.trim() || null,
++        memo: form.memo.trim() || null,
++      })
++    if (insertError) {
++      setError(toKoreanError(insertError))
++      return
++    }
++    setForm({ title: '', startsAt: '', place: '', memo: '' })
++    setAdding(false)
++    setError('')
++    await load()
++  }
++
++  async function remove(meetingId: string) {
++    if (!window.confirm('회의 일정을 삭제할까요?')) return
++    await db().from('team_meetings').delete().eq('id', meetingId)
++    await load()
++  }
++
++  const now = Date.now()
++  const upcoming = items.filter((m) => new Date(m.starts_at).getTime() >= now - 3600_000)
++  const past = items.filter((m) => new Date(m.starts_at).getTime() < now - 3600_000).reverse()
++
++  return (
++    <div className="space-y-4">
++      {adding ? (
++        <Card className="animate-rise p-5">
++          <form onSubmit={submit} className="space-y-3">
++            <div className="grid gap-3 sm:grid-cols-2">
++              <Field label="회의 이름">
++                <input
++                  className={inputClass}
++                  value={form.title}
++                  onChange={(e) => setForm({ ...form, title: e.target.value })}
++                  autoFocus
++                />
++              </Field>
++              <Field label="날짜와 시간">
++                <input
++                  type="datetime-local"
++                  className={inputClass}
++                  value={form.startsAt}
++                  onChange={(e) => setForm({ ...form, startsAt: e.target.value })}
++                />
++              </Field>
++            </div>
++            <Field label="장소 또는 화상회의 링크">
++              <input className={inputClass} value={form.place} onChange={(e) => setForm({ ...form, place: e.target.value })} />
++            </Field>
++            <Field label="메모">
++              <textarea
++                className={inputClass}
++                rows={2}
++                value={form.memo}
++                onChange={(e) => setForm({ ...form, memo: e.target.value })}
++              />
++            </Field>
++            <ErrorText>{error}</ErrorText>
++            <div className="flex justify-end gap-2">
++              <Button variant="secondary" onClick={() => setAdding(false)}>
++                취소
++              </Button>
++              <Button type="submit" disabled={!form.title.trim() || !form.startsAt}>
++                등록
++              </Button>
++            </div>
++          </form>
++        </Card>
++      ) : (
++        <Button variant="secondary" onClick={() => setAdding(true)}>
++          <Plus className="size-4" />
++          회의 일정 추가
++        </Button>
++      )}
++
++      <Card className="overflow-hidden">
++        {upcoming.length === 0 && past.length === 0 ? (
++          <EmptyState icon={CalendarDays} title="등록된 회의가 없어요." />
++        ) : (
++          <ul className="divide-y divide-slate-100">
++            {[...upcoming, ...past].map((m) => {
++              const isPast = new Date(m.starts_at).getTime() < now - 3600_000
++              const isUrl = m.place?.startsWith('http')
++              return (
++                <li key={m.id} className={`flex animate-rise gap-3 px-4 py-4 md:px-5 ${isPast ? 'opacity-50' : ''}`}>
++                  <CalendarDays className="mt-0.5 size-5 shrink-0 text-brand-600" />
++                  <div className="min-w-0 flex-1">
++                    <p className="font-semibold">{m.title}</p>
++                    <p className="text-sm text-slate-600">{formatDateTime(m.starts_at)}</p>
++                    {m.place &&
++                      (isUrl ? (
++                        <a
++                          href={m.place}
++                          target="_blank"
++                          rel="noreferrer"
++                          className="mt-0.5 inline-flex items-center gap-1 text-sm text-brand-600 hover:underline"
++                        >
++                          화상회의 링크
++                          <ExternalLink className="size-3.5" />
++                        </a>
++                      ) : (
++                        <p className="text-sm text-slate-500">{m.place}</p>
++                      ))}
++                    {m.memo && <p className="mt-1 text-sm whitespace-pre-wrap text-slate-500">{m.memo}</p>}
++                  </div>
++                  {(m.created_by === profile?.id || isOwner) && (
++                    <button
++                      type="button"
++                      aria-label="삭제"
++                      onClick={() => void remove(m.id)}
++                      className="self-start p-1 text-slate-300 hover:text-red-500"
++                    >
++                      <Trash2 className="size-4" />
++                    </button>
++                  )}
++                </li>
++              )
++            })}
++          </ul>
++        )}
++      </Card>
++    </div>
++  )
++}
++
++function Links({ roomId, isOwner }: { roomId: string; isOwner: boolean }) {
++  const { profile } = useAuth()
++  const [items, setItems] = useState<TeamLink[]>([])
++  const [title, setTitle] = useState('')
++  const [url, setUrl] = useState('')
++  const [error, setError] = useState('')
++
++  const load = useCallback(async () => {
++    const { data } = await db()
++      .from('team_links')
++      .select('id, title, url, created_by, created_at')
++      .eq('room_id', roomId)
++      .order('created_at', { ascending: false })
++    setItems((data as TeamLink[] | null) ?? [])
++  }, [roomId])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    const fixedUrl = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`
++    const { error: insertError } = await db()
++      .from('team_links')
++      .insert({ room_id: roomId, title: title.trim(), url: fixedUrl })
++    if (insertError) {
++      setError(toKoreanError(insertError))
++      return
++    }
++    setTitle('')
++    setUrl('')
++    setError('')
++    await load()
++  }
++
++  async function remove(linkId: string) {
++    await db().from('team_links').delete().eq('id', linkId)
++    await load()
++  }
++
++  return (
++    <div className="space-y-4">
++      <Card className="p-4">
++        <form onSubmit={submit} className="grid gap-2 sm:grid-cols-[1fr_1.5fr_auto]">
++          <input className={inputClass} placeholder="이름 (예: 피그마 시안)" value={title} onChange={(e) => setTitle(e.target.value)} />
++          <input className={inputClass} placeholder="링크 주소" value={url} onChange={(e) => setUrl(e.target.value)} />
++          <Button type="submit" disabled={!title.trim() || !url.trim()}>
++            <Plus className="size-4" />
++            추가
++          </Button>
++        </form>
++        <div className="mt-2">
++          <ErrorText>{error}</ErrorText>
++        </div>
++      </Card>
++
++      <Card className="overflow-hidden">
++        {items.length === 0 ? (
++          <EmptyState icon={Link2} title="공유한 자료가 없어요. 피그마, 깃허브, 드라이브 링크를 모아 두세요." />
++        ) : (
++          <ul className="divide-y divide-slate-100">
++            {items.map((item) => (
++              <li key={item.id} className="flex animate-rise items-center gap-3 px-4 py-3.5 md:px-5">
++                <Link2 className="size-4 shrink-0 text-slate-400" />
++                <a href={item.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 hover:underline">
++                  <p className="truncate text-sm font-medium">{item.title}</p>
++                  <p className="truncate text-xs text-slate-400">{item.url}</p>
++                </a>
++                {(item.created_by === profile?.id || isOwner) && (
++                  <button
++                    type="button"
++                    aria-label="삭제"
++                    onClick={() => void remove(item.id)}
++                    className="p-1 text-slate-300 hover:text-red-500"
++                  >
++                    <Trash2 className="size-4" />
++                  </button>
++                )}
++              </li>
++            ))}
++          </ul>
++        )}
++      </Card>
++    </div>
++  )
++}
++
++function Members({ room, isOwner, onChange }: { room: TeamRoom; isOwner: boolean; onChange: () => void }) {
++  const { profile } = useAuth()
++  const navigate = useNavigate()
++  const [error, setError] = useState('')
++
++  async function kick(userId: string, name: string) {
++    if (!window.confirm(`${name}님을 팀에서 내보낼까요?`)) return
++    const { error: deleteError } = await db().from('team_members').delete().eq('room_id', room.id).eq('user_id', userId)
++    if (deleteError) setError(toKoreanError(deleteError))
++    else onChange()
++  }
++
++  async function leave() {
++    if (!window.confirm('팀룸에서 나갈까요?')) return
++    const { error: deleteError } = await db()
++      .from('team_members')
++      .delete()
++      .eq('room_id', room.id)
++      .eq('user_id', profile?.id ?? '')
++    if (deleteError) setError(toKoreanError(deleteError))
++    else navigate('/team', { replace: true })
++  }
++
++  async function removeRoom() {
++    if (!window.confirm('팀룸을 삭제할까요? 채팅, 회의 일정, 자료가 모두 삭제돼요.')) return
++    const { error: deleteError } = await db().from('team_rooms').delete().eq('id', room.id)
++    if (deleteError) setError(toKoreanError(deleteError))
++    else navigate('/team', { replace: true })
++  }
++
++  async function chat(userId: string) {
++    const { data, error: rpcError } = await db().rpc('start_direct_chat', { p_user_id: userId })
++    if (rpcError) setError(toKoreanError(rpcError))
++    else navigate(`/chat/${data as string}`)
++  }
++
++  const members = [...room.team_members].sort((a, b) => (a.role === 'owner' ? -1 : b.role === 'owner' ? 1 : 0))
++
++  return (
++    <div className="space-y-4">
++      <Card className="overflow-hidden">
++        <ul className="divide-y divide-slate-100">
++          {members.map((m) => {
++            const name = m.profiles?.name ?? '알 수 없음'
++            const isMe = m.user_id === profile?.id
++            return (
++              <li key={m.user_id} className="flex animate-rise items-center gap-3 px-4 py-3.5 md:px-5">
++                <Avatar name={name} />
++                <div className="min-w-0 flex-1">
++                  <p className="text-sm font-semibold">
++                    {name}
++                    {isMe && <span className="ml-1 font-normal text-brand-600">(나)</span>}
++                    {m.role === 'owner' && (
++                      <span className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">방장</span>
++                    )}
++                  </p>
++                  <p className="text-xs text-slate-500">
++                    @{m.profiles?.nickname} · {m.profiles?.grade ? `${m.profiles.grade}학년` : '졸업생'}
++                  </p>
++                </div>
++                {!isMe && (
++                  <button
++                    type="button"
++                    onClick={() => void chat(m.user_id)}
++                    className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-200"
++                  >
++                    <MessageSquare className="size-3.5" />
++                    1:1
++                  </button>
++                )}
++                {isOwner && !isMe && (
++                  <button type="button" onClick={() => void kick(m.user_id, name)} className="text-xs text-slate-400 hover:text-red-500">
++                    내보내기
++                  </button>
++                )}
++              </li>
++            )
++          })}
++        </ul>
++      </Card>
++
++      <ErrorText>{error}</ErrorText>
++
++      <div className="flex justify-end">
++        {isOwner ? (
++          <Button variant="ghost" className="text-red-600" onClick={() => void removeRoom()}>
++            <Trash2 className="size-4" />
++            팀룸 삭제
++          </Button>
++        ) : (
++          <Button variant="ghost" onClick={() => void leave()}>
++            팀룸 나가기
++          </Button>
++        )}
++      </div>
++    </div>
++  )
++}
+diff --git a/src/pages/team/TeamRoomPage.tsx b/src/pages/team/TeamRoomPage.tsx
+index dcd5de2..6b0be9d 100644
+--- a/src/pages/team/TeamRoomPage.tsx
++++ b/src/pages/team/TeamRoomPage.tsx
+@@ -1,7 +1,199 @@
+-import { PlaceholderPage } from '../../components/PlaceholderPage'
+-import { findNavItem } from '../../config/navigation'
++import { ChevronRight, KeyRound, Plus, Users } from 'lucide-react'
++import { useCallback, useEffect, useState, type FormEvent } from 'react'
++import { Link, useNavigate } from 'react-router-dom'
++import { Button, Card, EmptyState, ErrorText, Field, Modal, PageHeader, Spinner, inputClass } from '../../components/ui'
++import { useAuth } from '../../lib/auth'
++import { toKoreanError } from '../../lib/errors'
++import { timeAgo } from '../../lib/format'
++import { db } from '../../lib/supabase'
++
++type MyRoom = {
++  role: 'owner' | 'member'
++  team_rooms: {
++    id: string
++    name: string
++    description: string | null
++    created_at: string
++    team_members: { count: number }[]
++  } | null
++}
+ 
+-// TODO: 이 파일을 기능 브랜치에서 실제 화면으로 교체
+ export default function TeamRoomPage() {
+-  return <PlaceholderPage item={findNavItem('/team')!} />
++  const { profile } = useAuth()
++  const navigate = useNavigate()
++  const [rooms, setRooms] = useState<MyRoom[]>([])
++  const [loading, setLoading] = useState(true)
++  const [modal, setModal] = useState<'create' | 'join' | null>(null)
++
++  const load = useCallback(async () => {
++    if (!profile) return
++    const { data } = await db()
++      .from('team_members')
++      .select('role, team_rooms(id, name, description, created_at, team_members(count))')
++      .eq('user_id', profile.id)
++      .order('joined_at', { ascending: false })
++    setRooms(((data as MyRoom[] | null) ?? []).filter((r) => r.team_rooms))
++    setLoading(false)
++  }, [profile])
++
++  useEffect(() => {
++    void load()
++  }, [load])
++
++  return (
++    <section>
++      <PageHeader
++        title="팀룸"
++        description="팀을 만들고 방 키로 모여 협업해요"
++        icon={Users}
++        action={
++          <div className="flex gap-2">
++            <Button variant="secondary" onClick={() => setModal('join')}>
++              <KeyRound className="size-4" />
++              방 키로 참여
++            </Button>
++            <Button onClick={() => setModal('create')}>
++              <Plus className="size-4" />
++              팀룸 만들기
++            </Button>
++          </div>
++        }
++      />
++
++      <div className="mt-6">
++        {loading ? (
++          <Spinner />
++        ) : rooms.length === 0 ? (
++          <Card>
++            <EmptyState
++              icon={Users}
++              title="참여 중인 팀룸이 없어요. 팀룸을 만들거나, 팀장에게 받은 방 키로 참여해 보세요."
++            />
++          </Card>
++        ) : (
++          <ul className="grid gap-3 sm:grid-cols-2">
++            {rooms.map(({ role, team_rooms: room }, i) =>
++              room ? (
++                <li key={room.id} className="animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
++                  <Link
++                    to={`/team/${room.id}`}
++                    className="group flex h-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
++                  >
++                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-600 text-lg font-bold text-white">
++                      {room.name.slice(0, 1)}
++                    </span>
++                    <div className="min-w-0 flex-1">
++                      <p className="flex items-center gap-1.5 font-semibold">
++                        <span className="truncate">{room.name}</span>
++                        {role === 'owner' && (
++                          <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
++                            방장
++                          </span>
++                        )}
++                      </p>
++                      <p className="mt-0.5 line-clamp-2 text-sm text-slate-500">{room.description ?? '설명 없음'}</p>
++                      <p className="mt-2 text-xs text-slate-400">
++                        팀원 {room.team_members[0]?.count ?? 1}명 · {timeAgo(room.created_at)} 생성
++                      </p>
++                    </div>
++                    <ChevronRight className="size-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5" />
++                  </Link>
++                </li>
++              ) : null,
++            )}
++          </ul>
++        )}
++      </div>
++
++      {modal === 'create' && <CreateModal onClose={() => setModal(null)} onDone={(id) => navigate(`/team/${id}`)} />}
++      {modal === 'join' && <JoinModal onClose={() => setModal(null)} onDone={(id) => navigate(`/team/${id}`)} />}
++    </section>
++  )
++}
++
++function CreateModal({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
++  const [name, setName] = useState('')
++  const [description, setDescription] = useState('')
++  const [error, setError] = useState('')
++  const [submitting, setSubmitting] = useState(false)
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    if (!name.trim()) return
++    setSubmitting(true)
++    const { data, error: insertError } = await db()
++      .from('team_rooms')
++      .insert({ name: name.trim(), description: description.trim() || null })
++      .select('id')
++      .single()
++    setSubmitting(false)
++    if (insertError || !data) {
++      setError(toKoreanError(insertError))
++      return
++    }
++    onDone(data.id as string)
++  }
++
++  return (
++    <Modal title="팀룸 만들기" onClose={onClose}>
++      <form onSubmit={submit} className="space-y-4">
++        <Field label="팀 이름" hint="예: 웹 개발 공모전 팀">
++          <input className={inputClass} maxLength={50} value={name} onChange={(e) => setName(e.target.value)} autoFocus />
++        </Field>
++        <Field label="설명">
++          <textarea
++            className={inputClass}
++            maxLength={500}
++            rows={3}
++            value={description}
++            onChange={(e) => setDescription(e.target.value)}
++          />
++        </Field>
++        <p className="text-xs text-slate-500">만들면 방 키가 발급돼요. 팀원에게 방 키를 알려 주면 바로 들어올 수 있어요.</p>
++        <ErrorText>{error}</ErrorText>
++        <Button type="submit" className="w-full" disabled={submitting || !name.trim()}>
++          만들기
++        </Button>
++      </form>
++    </Modal>
++  )
++}
++
++function JoinModal({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
++  const [code, setCode] = useState('SM-')
++  const [error, setError] = useState('')
++  const [submitting, setSubmitting] = useState(false)
++
++  async function submit(event: FormEvent) {
++    event.preventDefault()
++    setSubmitting(true)
++    setError('')
++    const { data, error: rpcError } = await db().rpc('join_team_room', { p_code: code })
++    setSubmitting(false)
++    if (rpcError) {
++      setError(toKoreanError(rpcError))
++      return
++    }
++    onDone(data as string)
++  }
++
++  return (
++    <Modal title="방 키로 참여" onClose={onClose}>
++      <form onSubmit={submit} className="space-y-4">
++        <Field label="방 키">
++          <input
++            className={`${inputClass} text-center text-lg font-bold tracking-[0.2em] uppercase`}
++            maxLength={9}
++            value={code}
++            onChange={(e) => setCode(e.target.value.toUpperCase())}
++            autoFocus
++          />
++        </Field>
++        <ErrorText>{error}</ErrorText>
++        <Button type="submit" className="w-full" disabled={submitting || code.length < 9}>
++          참여하기
++        </Button>
++      </form>
++    </Modal>
++  )
+ }
+diff --git a/supabase/migrations/20261126000800_team_rooms_owner_select.sql b/supabase/migrations/20261126000800_team_rooms_owner_select.sql
+new file mode 100644
+index 0000000..87fc1f1
+--- /dev/null
++++ b/supabase/migrations/20261126000800_team_rooms_owner_select.sql
+@@ -0,0 +1,6 @@
++-- 팀룸을 만들 때 결과(id, 방 키)를 바로 돌려받을 수 있도록
++-- 방장이 팀원으로 등록되기 전에도 자기가 만든 팀룸은 조회 가능하게 함
++drop policy "team_rooms: 팀원·관리자 조회" on public.team_rooms;
++create policy "team_rooms: 팀원·방장·관리자 조회"
++  on public.team_rooms for select to authenticated
++  using (owner_id = (select auth.uid()) or public.is_team_member(id) or public.is_admin());
+-- 
+2.43.0
+
