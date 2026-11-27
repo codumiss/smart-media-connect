@@ -157,7 +157,7 @@ function ProfileForm() {
           </Field>
         </div>
         <Field label="이메일">
-          <input className={`${inputClass} bg-slate-50 text-slate-500`} value={email} disabled />
+          <input className={`${inputClass} bg-tile text-slate-500`} value={email} disabled />
         </Field>
         <ErrorText>{error}</ErrorText>
         <div className="flex items-center justify-end gap-3">
@@ -220,7 +220,7 @@ function MyPosts() {
         <ul className="divide-y divide-slate-100">
           {posts.map((p) => (
             <li key={p.id}>
-              <Link to={`/community/${p.id}`} className="flex items-center gap-3 px-4 py-3.5 hover:bg-slate-50 md:px-5">
+              <Link to={`/community/${p.id}`} className="flex items-center gap-3 px-4 py-3.5 hover:bg-tile md:px-5">
                 <span className="shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-600">
                   {CATEGORY_LABEL[p.category]}
                 </span>
@@ -272,7 +272,7 @@ function MyComments() {
         <ul className="divide-y divide-slate-100">
           {comments.map((c) => (
             <li key={c.id}>
-              <Link to={`/community/${c.post_id}`} className="block px-4 py-3.5 hover:bg-slate-50 md:px-5">
+              <Link to={`/community/${c.post_id}`} className="block px-4 py-3.5 hover:bg-tile md:px-5">
                 <p className="truncate text-sm">{c.body}</p>
                 <p className="mt-0.5 truncate text-xs text-slate-400">
                   {c.posts?.title ?? '삭제된 글'} · {timeAgo(c.created_at)}

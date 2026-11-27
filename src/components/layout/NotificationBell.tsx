@@ -87,7 +87,7 @@ export function NotificationBell({ placement }: { placement: 'sidebar' | 'header
         type="button"
         aria-label={`알림 ${unread}개`}
         onClick={() => setOpen((v) => !v)}
-        className="relative rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+        className="relative rounded-xl p-2 text-slate-600 transition hover:bg-white hover:text-ink"
       >
         <Bell className="size-5" />
         {unread > 0 && (
@@ -100,7 +100,7 @@ export function NotificationBell({ placement }: { placement: 'sidebar' | 'header
       {open && (
         <div
           className={[
-            'fixed z-50 flex max-h-[70vh] animate-rise flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl',
+            'fixed z-50 flex max-h-[70vh] animate-rise flex-col overflow-hidden rounded-card bg-white shadow-float',
             placement === 'header' ? 'inset-x-3 top-14' : 'top-4 left-[15.5rem] w-80',
           ].join(' ')}
         >
@@ -119,7 +119,7 @@ export function NotificationBell({ placement }: { placement: 'sidebar' | 'header
                   <button
                     type="button"
                     onClick={() => void openItem(item)}
-                    className="flex w-full gap-3 px-4 py-3 text-left hover:bg-slate-50"
+                    className="flex w-full gap-3 px-4 py-3 text-left hover:bg-tile"
                   >
                     <span
                       className={`mt-1.5 size-2 shrink-0 rounded-full ${item.is_read ? 'bg-transparent' : 'bg-brand-600'}`}

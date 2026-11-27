@@ -10,7 +10,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'images/mascot.png'],
       workbox: {
         // 폰트 CSS·파일을 한 번 받으면 기기에 저장해서 다음부터 바로 표시
         runtimeCaching: [
@@ -30,14 +30,14 @@ export default defineConfig({
         short_name: 'SM CONNECT',
         description: '스마트미디어학과 전용 소통·정보 공유·협업 플랫폼',
         lang: 'ko',
-        theme_color: '#4f46e5',
-        background_color: '#ffffff',
+        theme_color: '#F0EEE9',
+        background_color: '#F0EEE9',
         display: 'standalone',
         start_url: '/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'pwa-maskable-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),

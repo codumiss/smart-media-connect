@@ -73,12 +73,12 @@ export default function CommunityPage() {
       </div>
 
       <div className="relative mt-4">
-        <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+        <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-slate-400" />
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="제목, 내용 검색"
-          className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pr-3 pl-9 text-base outline-none focus:border-brand-500 md:text-sm"
+          className="w-full rounded-2xl bg-white py-3 pr-3 pl-10 text-base outline-none focus:ring-2 focus:ring-brand-100 md:text-sm"
         />
       </div>
 
@@ -86,7 +86,7 @@ export default function CommunityPage() {
         <ErrorText>{error}</ErrorText>
       </div>
 
-      <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="mt-2 overflow-hidden rounded-card bg-white">
         {loading ? (
           <Spinner />
         ) : filtered.length === 0 ? (
@@ -102,47 +102,25 @@ export default function CommunityPage() {
             }
           />
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-black/5">
             {filtered.map((post, i) => {
               const rec = post.recruitments
+              if (rec) return <RecruitItem key={post.id} post={post} index={i} />
               return (
                 <li key={post.id} className="animate-rise" style={{ animationDelay: `${Math.min(i, 10) * 30}ms` }}>
-                  <Link to={`/community/${post.id}`} className="block px-4 py-4 transition-colors hover:bg-slate-50 md:px-5">
+                  <Link to={`/community/${post.id}`} className="block px-4 py-4 transition-colors hover:bg-tile md:px-5">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-medium text-slate-600">
-                        {CATEGORY_LABEL[post.category]}
-                      </span>
-                      {rec && (
-                        <span
-                          className={[
-                            'rounded-md px-1.5 py-0.5 font-semibold',
-                            rec.status === 'open' ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-400',
-                          ].join(' ')}
-                        >
-                          {rec.status === 'open' ? (rec.deadline ? `모집 중 ${dDayLabel(rec.deadline)}` : '모집 중') : '모집 마감'}
-                        </span>
-                      )}
+                      <span className="rounded-lg bg-tile px-2 py-0.5 font-bold text-sub">{CATEGORY_LABEL[post.category]}</span>
                       {post.is_hidden && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-red-50 px-1.5 py-0.5 text-red-600">
+                        <span className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-0.5 text-red-600">
                           <EyeOff className="size-3" />
                           가려진 글
                         </span>
                       )}
                     </div>
-                    <p className="mt-1.5 truncate font-semibold">{post.title}</p>
-                    <p className="mt-0.5 line-clamp-1 text-sm text-slate-500">{post.body}</p>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
-                      <span>{postAuthorName(post)}</span>
-                      <span>{timeAgo(post.created_at)}</span>
-                      <span className="ml-auto inline-flex items-center gap-1">
-                        <Heart className="size-3.5" />
-                        {post.post_likes[0]?.count ?? 0}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <MessageCircle className="size-3.5" />
-                        {post.comments[0]?.count ?? 0}
-                      </span>
-                    </div>
+                    <p className="mt-1.5 truncate text-[17px] font-bold tracking-[-0.01em]">{post.title}</p>
+                    <p className="mt-0.5 line-clamp-2 text-sm text-sub">{post.body}</p>
+                    <PostMeta post={post} />
                   </Link>
                 </li>
               )
@@ -151,5 +129,68 @@ export default function CommunityPage() {
         )}
       </div>
     </section>
+  )
+}
+
+function PostMeta({ post }: { post: ListRow }) {
+  return (
+    <div className="mt-2 flex items-center gap-3 text-xs text-sub">
+      <span>{postAuthorName(post)}</span>
+      <span>{timeAgo(post.created_at)}</span>
+      <span className="num ml-auto inline-flex items-center gap-1">
+        <Heart className="size-3.5" />
+        {post.post_likes[0]?.count ?? 0}
+      </span>
+      <span className="num inline-flex items-center gap-1">
+        <MessageCircle className="size-3.5" />
+        {post.comments[0]?.count ?? 0}
+      </span>
+    </div>
+  )
+}
+
+/** 팀원 모집 글: 일반 글보다 크게, 모집 상태·마감·분야가 바로 보이게 */
+function RecruitItem({ post, index }: { post: ListRow; index: number }) {
+  const rec = post.recruitments!
+  const open = rec.status === 'open'
+  const tags = (rec.fields ?? '')
+    .split(/[,·/]/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 4)
+  return (
+    <li className="animate-rise p-2.5 md:p-3" style={{ animationDelay: `${Math.min(index, 10) * 30}ms` }}>
+      <Link
+        to={`/community/${post.id}`}
+        className={`block rounded-[20px] p-4 transition hover:-translate-y-0.5 md:p-5 ${open ? 'bg-tile' : 'bg-tile/60 opacity-70'}`}
+      >
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${open ? 'bg-star text-ink' : 'bg-black/10 text-sub'}`}>
+            {open ? '● 모집중' : '모집 마감'}
+          </span>
+          {open && rec.deadline && (
+            <span className="num rounded-full bg-black/5 px-2.5 py-0.5 text-xs font-semibold text-sub">마감 {dDayLabel(rec.deadline)}</span>
+          )}
+          {post.is_hidden && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-600">
+              <EyeOff className="size-3" />
+              가려진 글
+            </span>
+          )}
+        </div>
+        <p className="mt-2 text-lg font-extrabold tracking-[-0.02em]">{rec.project_name || post.title}</p>
+        <p className="mt-0.5 line-clamp-1 text-sm text-sub">{post.body}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          {tags.map((t) => (
+            <span key={t} className="rounded-lg bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-700">
+              {t}
+            </span>
+          ))}
+          {rec.headcount && <span className="num text-xs font-semibold text-sub">· {rec.headcount}명 모집</span>}
+          {rec.method && <span className="text-xs text-sub">· {rec.method}</span>}
+        </div>
+        <PostMeta post={post} />
+      </Link>
+    </li>
   )
 }

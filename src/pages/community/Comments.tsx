@@ -122,7 +122,7 @@ export function Comments({ postId }: { postId: string }) {
         })}
       </ul>
 
-      <form onSubmit={submit} className="mt-5 rounded-xl border border-slate-200 bg-white p-3">
+      <form onSubmit={submit} className="mt-5 rounded-2xl bg-white p-3">
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}

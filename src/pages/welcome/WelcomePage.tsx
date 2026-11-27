@@ -1,6 +1,8 @@
 import { Flag, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { LogoBadge, LogoFull } from '../../components/brand/Logo'
+import { Mascot } from '../../components/ui'
 import { Reveal } from '../../components/motion/Reveal'
 import { NAV_ITEMS } from '../../config/navigation'
 import { FLOW_STEPS, FlowPhone, useAutoStep } from './FlowPhone'
@@ -70,7 +72,7 @@ function HeroSection({ authState }: { authState: unknown }) {
             <Link
               to="/login"
               state={authState}
-              className="rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-[15px] font-semibold text-ink transition hover:border-slate-400 active:scale-[0.97]"
+              className="rounded-xl bg-white px-6 ring-1 ring-black/10 py-3.5 text-[15px] font-semibold text-ink transition hover:bg-tile active:scale-[0.97]"
             >
               로그인
             </Link>
@@ -81,6 +83,7 @@ function HeroSection({ authState }: { authState: unknown }) {
           <div className="relative">
             <div className="absolute -inset-16 -z-10 rounded-full bg-brand-200/50 blur-3xl" />
             <FlowPhone step={step} />
+            <Mascot className="pointer-events-none absolute -bottom-6 -left-12 w-36 drop-shadow-[0_12px_24px_rgb(0_0_0/0.15)] md:-left-36 md:w-52 sm:-left-24 sm:w-40" />
           </div>
           <div className="mt-6 flex items-center gap-2" role="tablist" aria-label="시연 단계">
             {FLOW_STEPS.map((s, i) => (
@@ -109,7 +112,7 @@ function HeroSection({ authState }: { authState: unknown }) {
 
 function ProblemSection() {
   return (
-    <section className="border-y border-slate-200 bg-white">
+    <section className="bg-white">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-20 md:grid-cols-[1fr_1.4fr] md:py-28">
         <Reveal>
           <h2 className="text-3xl leading-snug font-bold tracking-tight text-ink md:text-4xl">
@@ -166,7 +169,7 @@ function FlowStorySection() {
 
       <div className="mx-auto grid max-w-6xl px-5 md:grid-cols-[1fr_auto] md:gap-20">
         {/* 휴대폰: 모바일은 위에 고정, PC 는 오른쪽에 고정 */}
-        <div className="sticky top-14 z-10 -mx-5 flex h-[392px] justify-center bg-slate-50/95 pt-4 backdrop-blur md:order-last md:top-0 md:mx-0 md:h-screen md:items-center md:bg-transparent md:pt-0 md:backdrop-blur-none">
+        <div className="sticky top-14 z-10 -mx-5 flex h-[392px] justify-center bg-tile/95 pt-4 backdrop-blur md:order-last md:top-0 md:mx-0 md:h-screen md:items-center md:bg-transparent md:pt-0 md:backdrop-blur-none">
           <FlowPhone step={step} className="origin-top scale-[0.72] md:scale-100" />
         </div>
 
@@ -204,14 +207,14 @@ function FlowStorySection() {
 
 function MenuSection() {
   return (
-    <section className="border-t border-slate-200 bg-white">
+    <section className="bg-white">
       <div className="mx-auto max-w-6xl px-5 py-20 md:py-28">
         <Reveal>
           <h2 className="text-3xl font-bold tracking-tight text-ink md:text-4xl">메뉴 구성</h2>
         </Reveal>
         <ul className="mt-10 grid gap-x-12 md:grid-cols-2">
           {MENU_ITEMS.map(({ path, label, icon: Icon, description, comingSoon }, i) => (
-            <li key={path} className="border-t border-slate-200">
+            <li key={path} className="border-t border-black/5">
               <Reveal delay={(i % 2) * 100} className="flex gap-4 py-6">
                 <Icon className="mt-0.5 size-6 shrink-0 text-brand-600" />
                 <div>
@@ -269,7 +272,7 @@ export default function WelcomePage() {
   const authState = location.state
 
   return (
-    <div className="min-h-full bg-slate-50">
+    <div className="min-h-full bg-canvas">
       <div
         className="fixed top-0 left-0 z-50 h-0.5 bg-brand-600 transition-[width] duration-150"
         style={{ width: `${progress * 100}%` }}
@@ -278,22 +281,22 @@ export default function WelcomePage() {
       <header
         className={[
           'fixed inset-x-0 top-0 z-40 transition-all duration-300',
-          scrolled ? 'border-b border-slate-200 bg-white/90 backdrop-blur' : 'bg-transparent',
+          scrolled ? 'bg-canvas/85 shadow-[0_1px_0_rgb(0_0_0/0.05)] backdrop-blur-xl' : 'bg-transparent',
         ].join(' ')}
       >
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
           <span className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-lg bg-brand-600 text-xs font-bold text-white">SM</span>
-            <span className="text-sm font-bold tracking-tight text-ink">SMART MEDIA CONNECT</span>
+            <LogoBadge className="size-9" />
+            <span className="text-[13px] leading-tight font-extrabold tracking-tight whitespace-nowrap text-ink sm:text-sm">SMART MEDIA<br className="sm:hidden" /> CONNECT</span>
           </span>
           <nav className="flex items-center gap-1">
-            <Link to="/login" state={authState} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:text-ink">
+            <Link to="/login" state={authState} className="rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap text-slate-600 hover:text-ink">
               로그인
             </Link>
             <Link
               to="/signup"
               state={authState}
-              className="rounded-lg bg-ink px-3.5 py-2 text-sm font-semibold text-white transition active:scale-[0.97]"
+              className="rounded-xl bg-ink px-3.5 py-2 text-sm font-semibold whitespace-nowrap text-white transition active:scale-[0.97]"
             >
               회원가입
             </Link>
@@ -310,6 +313,7 @@ export default function WelcomePage() {
 
         <section className="mx-auto max-w-6xl px-5 py-20 text-center md:py-28">
           <Reveal>
+            <LogoFull className="mx-auto mb-8 w-40 text-ink md:w-48" title="jj univ smart media" />
             <h2 className="text-2xl font-bold tracking-tight text-ink md:text-3xl">
               스마트미디어학과 재학생과 졸업생은
               <br className="sm:hidden" /> 가입 후 이용할 수 있습니다
@@ -325,7 +329,7 @@ export default function WelcomePage() {
               <Link
                 to="/login"
                 state={authState}
-                className="rounded-xl border border-slate-300 bg-white px-6 py-3.5 text-[15px] font-semibold text-ink transition hover:border-slate-400 active:scale-[0.97]"
+                className="rounded-xl bg-white px-6 ring-1 ring-black/10 py-3.5 text-[15px] font-semibold text-ink transition hover:bg-tile active:scale-[0.97]"
               >
                 로그인
               </Link>
@@ -334,7 +338,7 @@ export default function WelcomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-slate-200 py-8 text-center text-xs text-slate-400">© 스마트미디어학과</footer>
+      <footer className="border-t border-black/5 py-8 text-center text-xs text-sub">© 스마트미디어학과 · jj univ smart media</footer>
     </div>
   )
 }

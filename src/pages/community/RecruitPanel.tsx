@@ -140,7 +140,7 @@ export function RecruitPanel({
             ) : (
               <ul className="mt-3 space-y-2">
                 {applications.map((app) => (
-                  <li key={app.id} className="flex animate-rise items-start gap-3 rounded-xl bg-slate-50 p-3">
+                  <li key={app.id} className="flex animate-rise items-start gap-3 rounded-xl bg-tile p-3">
                     <Avatar name={app.applicant?.name ?? '?'} size="sm" />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold">

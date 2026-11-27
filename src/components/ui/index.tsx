@@ -17,13 +17,13 @@ export function PageHeader({
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         {Icon && (
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand-600">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white text-brand-600">
             <Icon className="size-5" />
           </span>
         )}
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold md:text-2xl">{title}</h1>
-          {description && <p className="text-sm text-slate-500">{description}</p>}
+          <h1 className="truncate text-2xl font-extrabold tracking-[-0.03em] md:text-[28px]">{title}</h1>
+          {description && <p className="text-sm text-sub">{description}</p>}
         </div>
       </div>
       {action}
@@ -35,15 +35,15 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost'
 
 const BUTTON_CLASS: Record<ButtonVariant, string> = {
   primary: 'bg-brand-600 text-white hover:bg-brand-700',
-  secondary: 'border border-slate-300 bg-white text-slate-700 hover:border-slate-400',
+  secondary: 'bg-white text-ink ring-1 ring-black/5 hover:bg-tile',
   danger: 'bg-red-600 text-white hover:bg-red-700',
-  ghost: 'text-slate-600 hover:bg-slate-100',
+  ghost: 'text-slate-600 hover:bg-black/5',
 }
 
 export function buttonClass(variant: ButtonVariant = 'primary', size: 'sm' | 'md' = 'md') {
   return [
-    'inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
-    size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm',
+    'inline-flex items-center justify-center gap-1.5 rounded-xl font-bold transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50',
+    size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm md:py-2.5',
     BUTTON_CLASS[variant],
   ].join(' ')
 }
@@ -59,7 +59,7 @@ export function Button({
 }
 
 export const inputClass =
-  'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 md:text-sm'
+  'w-full rounded-xl border border-black/10 bg-white px-3.5 py-2.5 text-base outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 md:text-sm'
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: ReactNode }) {
   return (
@@ -72,7 +72,7 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-slate-200 bg-white ${className}`}>{children}</div>
+  return <div className={`rounded-card bg-white ${className}`}>{children}</div>
 }
 
 export function Spinner({ className = '' }: { className?: string }) {
@@ -83,15 +83,37 @@ export function Spinner({ className = '' }: { className?: string }) {
   )
 }
 
-/** 내용이 없을 때: 무엇을 하면 되는지 안내 */
-export function EmptyState({ icon: Icon, title, action }: { icon?: LucideIcon; title: string; action?: ReactNode }) {
+/** 내용이 없을 때: 학과 캐릭터와 함께 무엇을 하면 되는지 안내 */
+export function EmptyState({
+  icon: Icon,
+  title,
+  action,
+  mascot = true,
+  size = 'md',
+}: {
+  icon?: LucideIcon
+  title: string
+  action?: ReactNode
+  /** 캐릭터 이미지 표시 (기본 표시, false 면 아이콘) */
+  mascot?: boolean
+  size?: 'sm' | 'md'
+}) {
   return (
-    <div className="flex flex-col items-center gap-3 px-4 py-12 text-center">
-      {Icon && <Icon className="size-8 text-slate-300" />}
-      <p className="text-sm text-slate-500">{title}</p>
+    <div className={`flex flex-col items-center gap-3 px-4 text-center ${size === 'sm' ? 'py-4' : 'py-10'}`}>
+      {mascot ? (
+        <Mascot className={size === 'sm' ? 'w-24' : 'w-32'} />
+      ) : (
+        Icon && <Icon className="size-8 text-slate-300" />
+      )}
+      <p className="max-w-xs text-sm leading-relaxed text-sub">{title}</p>
       {action}
     </div>
   )
+}
+
+/** 학과 캐릭터 (public/images/mascot.png) */
+export function Mascot({ className = '' }: { className?: string }) {
+  return <img src="/images/mascot.png" alt="" aria-hidden="true" draggable={false} className={`select-none ${className}`} />
 }
 
 export function ErrorText({ children }: { children: ReactNode }) {
@@ -134,7 +156,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[90vh] w-full max-w-md animate-rise overflow-y-auto rounded-t-2xl bg-white p-5 md:rounded-2xl md:p-6"
+        className="max-h-[90vh] w-full max-w-md animate-rise overflow-y-auto rounded-t-3xl bg-white p-5 shadow-float md:rounded-3xl md:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -169,8 +191,8 @@ export function Tabs<T extends string>({
           aria-selected={value === item.value}
           onClick={() => onChange(item.value)}
           className={[
-            'shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
-            value === item.value ? 'bg-ink text-white' : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100',
+            'shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors',
+            value === item.value ? 'bg-ink text-white' : 'bg-white text-slate-600 hover:bg-tile',
           ].join(' ')}
         >
           {item.label}

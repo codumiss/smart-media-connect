@@ -1,14 +1,24 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-ink: #1e1b4b;
+  /* ---------- 색 (학과 캐릭터의 파란 망토 · 노란 별에서 가져옴) ---------- */
+  --color-brand-50: #eaf3fa;
+  --color-brand-100: #d3e6f4;
+  --color-brand-200: #a9cde8;
+  --color-brand-500: #1f82c0;
+  --color-brand-600: #1668a0; /* 메인 버튼·링크 (흰 배경 대비 5.96:1) */
+  --color-brand-700: #125e92;
+  --color-hero: #1878b0; /* 홈 D-day 카드 배경 */
+  --color-star: #ffd43b; /* 포인트: 모집중·D-day 배지 (진한 글자만 올리기) */
+  --color-canvas: #f0eeE9; /* 앱 바탕 (Pantone 2026 Cloud Dancer) */
+  --color-tile: #f7f6f2; /* 카드 안쪽 칸 */
+  --color-ink: #111827;
+  --color-sub: #5b6270; /* 보조 글자 (바탕 대비 4.5:1 이상) */
   --color-signal: #16a34a;
+
+  /* ---------- 모서리·그림자 ---------- */
+  --radius-card: 1.5rem;
+  --shadow-float: 0 8px 24px rgb(17 24 39 / 0.12);
   /* 웹폰트를 못 받았을 때: 아이폰은 Apple SD Gothic Neo, 갤럭시는 기본 한글 글꼴(Noto Sans KR 계열), 윈도우는 맑은 고딕 */
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo",
     "Noto Sans KR", "Malgun Gothic", Roboto, sans-serif;
@@ -42,8 +52,8 @@
     50% { opacity: 0; }
   }
   @keyframes ping-soft {
-    0% { box-shadow: 0 0 0 0 rgb(79 70 229 / 0.45); }
-    100% { box-shadow: 0 0 0 14px rgb(79 70 229 / 0); }
+    0% { box-shadow: 0 0 0 0 rgb(22 104 160 / 0.45); }
+    100% { box-shadow: 0 0 0 14px rgb(22 104 160 / 0); }
   }
 }
 
@@ -54,7 +64,13 @@ body,
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  @apply bg-canvas text-ink antialiased;
+  letter-spacing: -0.01em;
+}
+
+/* D-day·인원수 같은 숫자가 흔들리지 않도록 */
+.num {
+  font-variant-numeric: tabular-nums;
 }
 
 /* 스크롤하면 나타나는 요소 (components/motion/Reveal.tsx) */

@@ -3,11 +3,17 @@ import { MORE_TAB, NAV_ITEMS } from '../../config/navigation'
 
 const TABS = [...NAV_ITEMS.filter((item) => item.mobileTab), MORE_TAB]
 
-/** 모바일(< md) 하단 탭 메뉴 — 선택한 탭의 아이콘 배경이 커지며 표시됨 */
+/**
+ * 모바일(< md) 하단 탭 메뉴
+ * 화면 아래에 떠 있는 둥근 바. 반투명 효과는 여기에만 쓰고(본문 가독성 보호), 지원 안 되는 브라우저는 불투명 배경
+ */
 export function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-      <ul className="grid grid-cols-5">
+    <nav
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+12px)] z-20 rounded-[26px] bg-white shadow-float supports-[backdrop-filter]:bg-white/85 supports-[backdrop-filter]:backdrop-blur-xl md:hidden"
+      aria-label="주요 메뉴"
+    >
+      <ul className="grid grid-cols-5 px-1.5 py-2">
         {TABS.map(({ path, label, icon: Icon }) => (
           <li key={path}>
             <NavLink
@@ -15,8 +21,8 @@ export function BottomNav() {
               end={path === '/'}
               className={({ isActive }) =>
                 [
-                  'flex flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium transition-colors active:scale-95',
-                  isActive ? 'text-brand-600' : 'text-slate-500',
+                  'flex flex-col items-center gap-1 text-[11px] transition-colors active:scale-95',
+                  isActive ? 'font-extrabold text-brand-600' : 'font-semibold text-slate-500',
                 ].join(' ')
               }
             >
@@ -24,11 +30,11 @@ export function BottomNav() {
                 <>
                   <span
                     className={[
-                      'grid h-7 w-12 place-items-center rounded-full transition-all duration-300',
-                      isActive ? 'scale-100 bg-brand-50' : 'scale-75 bg-transparent',
+                      'grid h-8 w-13 place-items-center rounded-full transition-all duration-300',
+                      isActive ? 'bg-brand-50' : 'bg-transparent',
                     ].join(' ')}
                   >
-                    <Icon className={['size-5 transition-transform duration-300', isActive ? 'scale-110' : 'scale-125'].join(' ')} />
+                    <Icon className={['size-[22px] transition-transform duration-300', isActive ? 'scale-105' : ''].join(' ')} />
                   </span>
                   {label}
                 </>

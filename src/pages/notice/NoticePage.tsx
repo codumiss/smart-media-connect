@@ -98,7 +98,7 @@ function AnnouncementList({
                 type="button"
                 onClick={() => onToggle(item.id)}
                 aria-expanded={open}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-slate-50 md:px-5"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left hover:bg-tile md:px-5"
               >
                 {item.is_pinned ? (
                   <Pin className="size-4 shrink-0 fill-current text-brand-600" />
@@ -275,7 +275,7 @@ function ScheduleItem({
 }) {
   const cat = SCHEDULE_CATEGORY[s.category]
   return (
-    <li className="flex animate-rise gap-3 rounded-xl bg-slate-50 p-3">
+    <li className="flex animate-rise gap-3 rounded-xl bg-tile p-3">
       <span className={`mt-1.5 size-2 shrink-0 rounded-full ${cat.dot}`} />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">{s.title}</p>

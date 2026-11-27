@@ -1,5 +1,6 @@
 import { ArrowLeft, Flag, LayoutDashboard, Megaphone, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
+import { LogoBadge } from '../../components/brand/Logo'
 import { UserBadge } from '../../components/layout/UserBadge'
 import { PageTransition } from '../../components/motion/PageTransition'
 import { useAdminAlerts } from '../../lib/adminAlerts'
@@ -28,9 +29,7 @@ export default function AdminLayout() {
       {/* PC 사이드바 */}
       <aside className="hidden md:flex md:w-60 md:shrink-0 md:flex-col md:bg-slate-900">
         <div className="flex items-center gap-2 px-5 py-5 text-white">
-          <span className="grid size-8 place-items-center rounded-lg bg-white/10">
-            <ShieldCheck className="size-4" />
-          </span>
+          <LogoBadge className="size-9 ring-1 ring-white/20" />
           <span className="text-sm font-bold leading-tight">
             SM CONNECT
             <br />
@@ -98,7 +97,7 @@ export default function AdminLayout() {
         </nav>
       </header>
 
-      <main className="flex-1 overflow-y-auto bg-slate-50 px-4 py-5 md:px-10 md:py-8">
+      <main className="flex-1 overflow-y-auto bg-tile px-4 py-5 md:px-10 md:py-8">
         <div className="mx-auto max-w-5xl">
           <PageTransition>
             <Outlet />

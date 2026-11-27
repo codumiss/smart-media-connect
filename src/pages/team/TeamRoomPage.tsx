@@ -6,6 +6,7 @@ import { useAuth } from '../../lib/auth'
 import { toKoreanError } from '../../lib/errors'
 import { timeAgo } from '../../lib/format'
 import { db } from '../../lib/supabase'
+import { teamColor } from '../../lib/teamColor'
 
 type MyRoom = {
   role: 'owner' | 'member'
@@ -77,22 +78,22 @@ export default function TeamRoomPage() {
                 <li key={room.id} className="animate-rise" style={{ animationDelay: `${i * 50}ms` }}>
                   <Link
                     to={`/team/${room.id}`}
-                    className="group flex h-full items-start gap-3 rounded-2xl border border-slate-200 bg-white p-5 transition hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-md"
+                    className="group flex h-full items-start gap-4 rounded-card bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-float md:p-6"
                   >
-                    <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-600 text-lg font-bold text-white">
+                    <span className={`grid size-14 shrink-0 place-items-center rounded-[18px] text-xl font-extrabold text-white ${teamColor(room.name)}`}>
                       {room.name.slice(0, 1)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 font-semibold">
+                      <p className="flex items-center gap-1.5 text-[17px] font-extrabold tracking-[-0.02em]">
                         <span className="truncate">{room.name}</span>
                         {role === 'owner' && (
-                          <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          <span className="shrink-0 rounded-full bg-star px-2 py-0.5 text-[11px] font-bold text-ink">
                             방장
                           </span>
                         )}
                       </p>
-                      <p className="mt-0.5 line-clamp-2 text-sm text-slate-500">{room.description ?? '설명 없음'}</p>
-                      <p className="mt-2 text-xs text-slate-400">
+                      <p className="mt-0.5 line-clamp-2 text-sm text-sub">{room.description ?? '설명 없음'}</p>
+                      <p className="num mt-2 text-xs font-semibold text-sub">
                         팀원 {room.team_members[0]?.count ?? 1}명 · {timeAgo(room.created_at)} 생성
                       </p>
                     </div>

@@ -22,7 +22,7 @@ export function PlaceholderPage({ item }: { item: NavItem }) {
           {item.plannedFeatures.map((feature, i) => (
             <li
               key={feature}
-              className="animate-rise rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700"
+              className="animate-rise rounded-lg bg-tile px-3 py-2 text-sm text-slate-700"
               style={{ animationDelay: `${120 + i * 50}ms` }}
             >
               {feature}

@@ -56,7 +56,7 @@ export default function AdminHomePage() {
         ))}
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="mt-6 flex flex-wrap items-center gap-3 rounded-card bg-white p-5">
         <Bell className="size-5 text-slate-400" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">신고 알림</p>
