@@ -67,6 +67,7 @@ export function ChatRoom({ roomId, className = '' }: { roomId: string; className
           .from('content_authors')
           .select('target_id')
           .eq('target_type', 'message')
+          .eq('author_id', profile?.id ?? '')
           .in(
             'target_id',
             list.map((m) => m.id),
@@ -97,7 +98,7 @@ export function ChatRoom({ roomId, className = '' }: { roomId: string; className
       active = false
       void client.removeChannel(channel)
     }
-  }, [roomId, loadNames])
+  }, [roomId, loadNames, profile?.id])
 
   // 새 메시지가 오면 맨 아래로
   useEffect(() => {

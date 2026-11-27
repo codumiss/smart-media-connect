@@ -33,7 +33,12 @@ export default function PostDetailPage() {
         .eq('id', id)
         .maybeSingle(),
       client.from('post_likes').select('user_id').eq('post_id', id),
-      client.from('content_authors').select('target_id').eq('target_type', 'post').eq('target_id', id),
+      client
+        .from('content_authors')
+        .select('target_id')
+        .eq('target_type', 'post')
+        .eq('target_id', id)
+        .eq('author_id', profile?.id ?? ''),
     ])
     setPost((postRes.data as PostRow | null) ?? null)
     const likes = (likeRes.data as { user_id: string }[] | null) ?? []
