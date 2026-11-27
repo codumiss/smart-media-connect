@@ -19,10 +19,10 @@ export default function MorePage() {
         <UserBadge />
       </div>
 
-      <ul className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <ul className="mt-4 divide-y divide-slate-100 overflow-hidden rounded-card bg-white">
         {items.map(({ path, label, icon: Icon, description, adminOnly, comingSoon }) => (
           <li key={path}>
-            <Link to={path} className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50">
+            <Link to={path} className="flex items-center gap-3 px-4 py-3.5 active:bg-tile">
               <Icon className="size-5 text-brand-600" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">

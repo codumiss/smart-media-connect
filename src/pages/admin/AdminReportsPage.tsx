@@ -117,7 +117,7 @@ export default function AdminReportsPage() {
 
       {error && !selected && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="mt-5 overflow-hidden rounded-card bg-white">
         {loading ? (
           <p className="p-6 text-center text-sm text-slate-400">불러오는 중…</p>
         ) : reports.length === 0 ? (
@@ -131,7 +131,7 @@ export default function AdminReportsPage() {
                 <button
                   type="button"
                   onClick={() => void openDetail(report)}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50"
+                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left hover:bg-tile"
                 >
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_CLASS[report.status]}`}>
                     {STATUS_LABEL[report.status]}
@@ -170,7 +170,7 @@ export default function AdminReportsPage() {
 
             {selected.detail && <p className="mt-3 text-sm text-slate-600">신고 내용: {selected.detail}</p>}
 
-            <div className="mt-4 rounded-xl bg-slate-50 p-4">
+            <div className="mt-4 rounded-xl bg-tile p-4">
               {detail ? (
                 <>
                   <p className="text-xs font-semibold text-slate-500">

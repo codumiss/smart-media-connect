@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/auth'
 import { toKoreanError } from '../../lib/errors'
 import { formatDateTime } from '../../lib/format'
 import { db } from '../../lib/supabase'
+import { teamColor } from '../../lib/teamColor'
 
 type Member = {
   user_id: string
@@ -92,19 +93,28 @@ export default function TeamRoomDetailPage() {
         팀룸
       </Link>
 
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold md:text-2xl">{room.name}</h1>
-          {room.description && <p className="mt-1 text-sm text-slate-500">{room.description}</p>}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-card bg-white p-4 md:p-5">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <span
+            className={`grid size-14 shrink-0 place-items-center rounded-[18px] text-xl font-extrabold text-white ${teamColor(room.name)}`}
+          >
+            {room.name.slice(0, 1)}
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-extrabold tracking-[-0.03em] md:text-2xl">{room.name}</h1>
+            <p className="mt-0.5 truncate text-sm text-sub">
+              팀원 {room.team_members.length}명{room.description ? ` · ${room.description}` : ''}
+            </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => void copyCode()}
-          className="group inline-flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-2 text-brand-700 transition hover:bg-brand-100 active:scale-95"
+          className="group inline-flex items-center gap-2 rounded-2xl bg-ink px-4 py-2.5 text-white transition hover:bg-ink/90 active:scale-95"
           title="방 키 복사"
         >
-          <span className="text-xs">방 키</span>
-          <span className="font-bold tracking-wider">{room.invite_code}</span>
+          <span className="text-xs text-white/70">방 키</span>
+          <span className="num font-extrabold tracking-[0.15em] text-star">{room.invite_code}</span>
           {copied ? <Check className="size-4 animate-pop text-signal" /> : <Copy className="size-4" />}
         </button>
       </div>

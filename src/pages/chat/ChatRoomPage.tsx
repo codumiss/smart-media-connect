@@ -80,25 +80,43 @@ export default function ChatRoomPage() {
 
   return (
     <section>
-      <div className="flex items-center gap-2">
-        <Link to="/chat" aria-label="소통 목록" className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">
+      <div
+        className={[
+          'flex items-center gap-2 rounded-card px-3 py-3 md:px-4',
+          room.is_anonymous ? 'bg-ink text-white' : 'bg-white',
+        ].join(' ')}
+      >
+        <Link
+          to="/chat"
+          aria-label="소통 목록"
+          className={`rounded-xl p-1.5 ${room.is_anonymous ? 'text-white/70 hover:bg-white/10' : 'text-slate-500 hover:bg-tile'}`}
+        >
           <ArrowLeft className="size-5" />
         </Link>
+        {room.is_anonymous && (
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-white/10">
+            <VenetianMask className="size-5" />
+          </span>
+        )}
         <div className="min-w-0 flex-1">
-          <h1 className="flex items-center gap-2 truncate text-lg font-bold md:text-xl">
-            {room.is_anonymous && <VenetianMask className="size-5 shrink-0 text-slate-500" />}
+          <h1 className="flex items-center gap-2 truncate text-lg font-extrabold tracking-tight md:text-xl">
             {title}
+            {room.is_anonymous && (
+              <span className="shrink-0 rounded-full bg-star px-2 py-0.5 text-[11px] font-bold text-ink">익명</span>
+            )}
           </h1>
-          <p className="truncate text-xs text-slate-500">
+          <p className={`truncate text-xs ${room.is_anonymous ? 'text-white/70' : 'text-sub'}`}>
             {room.kind === 'direct'
               ? '1:1 대화'
-              : `${room.is_anonymous ? '익명방' : '실명방'} · ${room.description ?? ''}`}
+              : room.is_anonymous
+                ? '이름 대신 익명 번호로 표시돼요 · 신고된 글은 관리자가 확인해요'
+                : `실명방${room.description ? ` · ${room.description}` : ''}`}
           </p>
         </div>
         <button
           type="button"
           onClick={() => void leave()}
-          className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
+          className={`inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs ${room.is_anonymous ? 'text-white/70 hover:bg-white/10' : 'text-sub hover:bg-tile'}`}
         >
           <LogOut className="size-3.5" />
           나가기
@@ -107,7 +125,7 @@ export default function ChatRoomPage() {
       <div className="mt-2">
         <ErrorText>{error}</ErrorText>
       </div>
-      <ChatRoom roomId={room.id} className="mt-3 h-[calc(100dvh-14rem)] md:h-[calc(100dvh-10rem)]" />
+      <ChatRoom roomId={room.id} className="mt-3 h-[calc(100dvh-17rem)] md:h-[calc(100dvh-11rem)]" />
     </section>
   )
 }

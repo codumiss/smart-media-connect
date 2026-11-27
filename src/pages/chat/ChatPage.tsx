@@ -1,7 +1,7 @@
 import { ChevronRight, MessagesSquare, Plus, VenetianMask } from 'lucide-react'
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Avatar, Button, Card, EmptyState, ErrorText, Field, Modal, PageHeader, Spinner, Tabs, inputClass } from '../../components/ui'
+import { Button, Card, EmptyState, ErrorText, Field, Modal, PageHeader, Spinner, Tabs, inputClass } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { toKoreanError } from '../../lib/errors'
 import { timeAgo } from '../../lib/format'
@@ -21,10 +21,13 @@ type DirectRoom = {
   chat_members: { user_id: string; profiles: { name: string } | null }[]
 }
 
+type Filter = 'all' | 'named' | 'anon' | 'direct'
+
+/** 목록 하나에 모든 방을 두고, 위쪽 칩으로 골라 보기 (탭으로 나누면 방을 찾기 어려워짐) */
 export default function ChatPage() {
   const { profile } = useAuth()
   const navigate = useNavigate()
-  const [tab, setTab] = useState<'open' | 'direct'>('open')
+  const [filter, setFilter] = useState<Filter>('all')
   const [openRooms, setOpenRooms] = useState<OpenRoom[]>([])
   const [directRooms, setDirectRooms] = useState<DirectRoom[]>([])
   const [joined, setJoined] = useState<Set<string>>(new Set())
@@ -76,11 +79,13 @@ export default function ChatPage() {
 
       <div className="mt-6">
         <Tabs
-          value={tab}
-          onChange={setTab}
+          value={filter}
+          onChange={setFilter}
           items={[
-            { value: 'open', label: '소통방' },
-            { value: 'direct', label: `1:1 대화${directRooms.length ? ` ${directRooms.length}` : ''}` },
+            { value: 'all', label: '전체' },
+            { value: 'named', label: '실명방' },
+            { value: 'anon', label: '익명방' },
+            { value: 'direct', label: `1:1${directRooms.length ? ` ${directRooms.length}` : ''}` },
           ]}
         />
       </div>
@@ -88,64 +93,81 @@ export default function ChatPage() {
       <Card className="mt-4 overflow-hidden">
         {loading ? (
           <Spinner />
-        ) : tab === 'open' ? (
-          openRooms.length === 0 ? (
-            <EmptyState icon={MessagesSquare} title="소통방이 없어요. 첫 방을 만들어 보세요." />
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {openRooms.map((room, i) => (
-                <li key={room.id} className="animate-rise" style={{ animationDelay: `${i * 40}ms` }}>
-                  <Link to={`/chat/${room.id}`} className="flex items-center gap-3 px-4 py-4 hover:bg-slate-50 md:px-5">
-                    <span
-                      className={[
-                        'grid size-10 shrink-0 place-items-center rounded-xl',
-                        room.is_anonymous ? 'bg-ink text-white' : 'bg-brand-50 text-brand-600',
-                      ].join(' ')}
-                    >
-                      {room.is_anonymous ? <VenetianMask className="size-5" /> : <MessagesSquare className="size-5" />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 font-semibold">
-                        <span className="truncate">{room.name}</span>
-                        <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                          {room.is_anonymous ? '익명' : '실명'}
-                        </span>
-                        {joined.has(room.id) && (
-                          <span className="shrink-0 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-medium text-brand-700">
-                            참여 중
-                          </span>
-                        )}
-                      </p>
-                      <p className="truncate text-sm text-slate-500">{room.description ?? '설명 없음'}</p>
-                    </div>
-                    {room.last_message_at && (
-                      <span className="shrink-0 text-xs text-slate-400">{timeAgo(room.last_message_at)}</span>
-                    )}
-                    <ChevronRight className="size-4 shrink-0 text-slate-300" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )
-        ) : directRooms.length === 0 ? (
-          <EmptyState title="1:1 대화가 없어요. 정보방 글이나 팀원 목록에서 '1:1 대화'를 눌러 시작할 수 있어요." />
         ) : (
-          <ul className="divide-y divide-slate-100">
-            {directRooms.map((room) => {
-              const other = room.chat_members.find((m) => m.user_id !== profile?.id)
-              const name = other?.profiles?.name ?? '알 수 없음'
+          (() => {
+            const shownOpen =
+              filter === 'direct' ? [] : openRooms.filter((r) => filter === 'all' || (filter === 'anon') === r.is_anonymous)
+            const shownDirect = filter === 'all' || filter === 'direct' ? directRooms : []
+            if (shownOpen.length + shownDirect.length === 0) {
               return (
-                <li key={room.id}>
-                  <Link to={`/chat/${room.id}`} className="flex items-center gap-3 px-4 py-4 hover:bg-slate-50 md:px-5">
-                    <Avatar name={name} />
-                    <p className="flex-1 font-semibold">{name}</p>
-                    {room.last_message_at && <span className="text-xs text-slate-400">{timeAgo(room.last_message_at)}</span>}
-                    <ChevronRight className="size-4 text-slate-300" />
-                  </Link>
-                </li>
+                <EmptyState
+                  title={
+                    filter === 'direct'
+                      ? "1:1 대화가 없어요. 정보방 글이나 팀원 목록에서 '1:1 대화'를 눌러 시작할 수 있어요."
+                      : '아직 방이 없어요. 첫 방을 만들어 보세요.'
+                  }
+                />
               )
-            })}
-          </ul>
+            }
+            return (
+              <ul className="divide-y divide-black/5">
+                {shownOpen.map((room, i) => (
+                  <li key={room.id} className="animate-rise" style={{ animationDelay: `${i * 40}ms` }}>
+                    <Link
+                      to={`/chat/${room.id}`}
+                      className={`flex items-center gap-3 px-4 py-4 md:px-5 ${room.is_anonymous ? 'bg-slate-900/[0.03] hover:bg-slate-900/[0.06]' : 'hover:bg-tile'}`}
+                    >
+                      <span
+                        className={[
+                          'grid size-12 shrink-0 place-items-center rounded-2xl',
+                          room.is_anonymous ? 'bg-ink text-white' : 'bg-brand-50 text-brand-600',
+                        ].join(' ')}
+                      >
+                        {room.is_anonymous ? <VenetianMask className="size-6" /> : <MessagesSquare className="size-6" />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1.5 text-[15px] font-bold">
+                          <span className="truncate">{room.name}</span>
+                          {room.is_anonymous ? (
+                            <span className="shrink-0 rounded-full bg-star px-2 py-0.5 text-[11px] font-bold text-ink">익명</span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-semibold text-sub">실명</span>
+                          )}
+                          {joined.has(room.id) && (
+                            <span className="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+                              참여 중
+                            </span>
+                          )}
+                        </p>
+                        <p className="truncate text-sm text-sub">{room.description ?? '설명 없음'}</p>
+                      </div>
+                      {room.last_message_at && <span className="shrink-0 text-xs text-sub">{timeAgo(room.last_message_at)}</span>}
+                      <ChevronRight className="size-4 shrink-0 text-slate-300" />
+                    </Link>
+                  </li>
+                ))}
+                {shownDirect.map((room) => {
+                  const other = room.chat_members.find((m) => m.user_id !== profile?.id)
+                  const name = other?.profiles?.name ?? '알 수 없음'
+                  return (
+                    <li key={room.id}>
+                      <Link to={`/chat/${room.id}`} className="flex items-center gap-3 px-4 py-4 hover:bg-tile md:px-5">
+                        <span className="grid size-12 shrink-0 place-items-center rounded-full bg-brand-100 text-base font-bold text-brand-700">
+                          {name.slice(0, 1)}
+                        </span>
+                        <p className="flex min-w-0 flex-1 items-center gap-1.5 text-[15px] font-bold">
+                          <span className="truncate">{name}</span>
+                          <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-semibold text-sub">1:1</span>
+                        </p>
+                        {room.last_message_at && <span className="text-xs text-sub">{timeAgo(room.last_message_at)}</span>}
+                        <ChevronRight className="size-4 text-slate-300" />
+                      </Link>
+                    </li>
+                  )
+                })}
+              </ul>
+            )
+          })()
         )}
       </Card>
 
@@ -202,8 +224,8 @@ function CreateRoomModal({ onClose, onCreated }: { onClose: () => void; onCreate
               type="button"
               onClick={() => setAnonymous(opt.value)}
               className={[
-                'rounded-xl border p-3 text-left transition',
-                anonymous === opt.value ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-slate-200',
+                'rounded-2xl border p-3 text-left transition',
+                anonymous === opt.value ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-100' : 'border-black/10',
               ].join(' ')}
             >
               <p className="text-sm font-semibold">{opt.label}</p>

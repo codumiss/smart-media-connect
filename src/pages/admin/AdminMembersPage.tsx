@@ -69,7 +69,7 @@ export default function AdminMembersPage() {
 
       {error && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="mt-4 overflow-hidden rounded-card bg-white">
         {loading ? (
           <p className="p-6 text-center text-sm text-slate-400">불러오는 중…</p>
         ) : filtered.length === 0 ? (

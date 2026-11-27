@@ -138,7 +138,7 @@ export function ChatRoom({ roomId, className = '' }: { roomId: string; className
   const isMine = (m: Message) => mine.has(m.id) || (!!m.author_id && m.author_id === profile?.id)
 
   return (
-    <div className={`flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white ${className}`}>
+    <div className={`flex flex-col overflow-hidden rounded-card bg-white ${className}`}>
       <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 && (
           <p className="py-10 text-center text-sm text-slate-400">첫 메시지를 보내 보세요.</p>
@@ -163,8 +163,8 @@ export function ChatRoom({ roomId, className = '' }: { roomId: string; className
                       if (e.key === 'Enter') setSelectedId((v) => (v === m.id ? null : m.id))
                     }}
                     className={[
-                      'cursor-pointer rounded-2xl px-3.5 py-2 text-sm leading-relaxed break-words whitespace-pre-wrap',
-                      me ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800',
+                      'cursor-pointer rounded-[18px] px-4 py-2.5 text-[15px] leading-relaxed break-words whitespace-pre-wrap',
+                      me ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-tile text-ink',
                       m.is_hidden ? 'opacity-50' : '',
                     ].join(' ')}
                   >
@@ -195,7 +195,7 @@ export function ChatRoom({ roomId, className = '' }: { roomId: string; className
 
       {error && <p className="border-t border-red-100 bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>}
 
-      <form onSubmit={send} className="flex items-end gap-2 border-t border-slate-200 p-3">
+      <form onSubmit={send} className="flex items-end gap-2 border-t border-black/5 p-3">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -209,15 +209,15 @@ export function ChatRoom({ roomId, className = '' }: { roomId: string; className
           rows={1}
           maxLength={2000}
           placeholder="메시지 입력"
-          className="max-h-32 min-h-10 flex-1 resize-none rounded-xl bg-slate-100 px-3.5 py-2.5 text-base outline-none focus:bg-white focus:ring-2 focus:ring-brand-100 md:text-sm"
+          className="max-h-32 min-h-11 flex-1 resize-none rounded-2xl bg-tile px-4 py-3 text-base outline-none focus:bg-white focus:ring-2 focus:ring-brand-100 md:text-sm"
         />
         <button
           type="submit"
           aria-label="보내기"
           disabled={!text.trim() || sending}
-          className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand-600 text-white transition active:scale-90 disabled:bg-slate-200 disabled:text-slate-400"
+          className="grid size-11 shrink-0 place-items-center rounded-2xl bg-brand-600 text-white transition active:scale-90 disabled:bg-black/5 disabled:text-slate-400"
         >
-          <SendHorizontal className="size-4" />
+          <SendHorizontal className="size-5" />
         </button>
       </form>
     </div>

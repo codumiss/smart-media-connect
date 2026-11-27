@@ -27,7 +27,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+    <div className="flex items-center gap-3 rounded-2xl bg-white px-3 py-2.5">
       <span
         className={[
           'grid size-9 shrink-0 place-items-center rounded-full text-sm font-bold',
@@ -45,7 +45,7 @@ export function UserBadge({ compact = false }: { compact?: boolean }) {
         onClick={() => void signOut()}
         aria-label="로그아웃"
         title="로그아웃"
-        className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+        className="rounded-lg p-1.5 text-slate-400 hover:bg-tile hover:text-slate-700"
       >
         <LogOut className="size-4" />
       </button>
