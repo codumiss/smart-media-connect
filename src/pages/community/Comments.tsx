@@ -17,7 +17,7 @@ type Comment = {
 }
 
 export function Comments({ postId }: { postId: string }) {
-  const { isAdmin } = useAuth()
+  const { isAdmin, profile } = useAuth()
   const [comments, setComments] = useState<Comment[]>([])
   const [mine, setMine] = useState<Set<string>>(new Set())
   const [body, setBody] = useState('')
@@ -40,13 +40,14 @@ export function Comments({ postId }: { postId: string }) {
         .from('content_authors')
         .select('target_id')
         .eq('target_type', 'comment')
+        .eq('author_id', profile?.id ?? '')
         .in(
           'target_id',
           list.map((c) => c.id),
         )
       setMine(new Set(((own as { target_id: string }[] | null) ?? []).map((r) => r.target_id)))
     }
-  }, [postId])
+  }, [postId, profile?.id])
 
   useEffect(() => {
     void load()
